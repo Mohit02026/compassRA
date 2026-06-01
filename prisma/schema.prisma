@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String     @id @default(cuid())
+  name      String
+  slug      String     @unique
+  createdAt DateTime   @default(now())
+  users     User[]
+  customers Customer[]
+  orders    Order[]
+}
+
+model User {
+  id            String    @id @default(cuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  email         String    @unique
+  passwordHash  String
+  role          Role      @default(CUSTOMER)
+  mustChangePwd Boolean   @default(true)
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  customer      Customer?
+}
+
+enum Role {
+  CUSTOMER
+  OPS
+  ADMIN
+}
+
+model Customer {
+  id        String    @id @default(cuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id])
+  name      String
+  email     String
+  phone     String?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  orders    Order[]
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  tenantId      String
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  customerId    String
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  serviceType   ServiceType
+  status        OrderStatus @default(INTAKE)
+  tier          Tier
+  state         String      @default("FL")
+  totalAmount   Decimal
+  dueDate       DateTime?
+  filedAt       DateTime?
+  completedAt   DateTime?
+  internalNotes String?
+  paymentRef    String?
+  deletedAt     DateTime?
+  createdAt     DateTime    @default(now())
+  orderData     OrderData[]
+  documents     Document[]
+  reminders     Reminder[]
+}
+
+enum ServiceType {
+  ANNUAL_REPORT
+  LLC_FORMATION
+  RA_TAKEOVER
+}
+
+enum OrderStatus {
+  INTAKE
+  REVIEW
+  FILED
+  COMPLETED
+  EXCEPTION
+}
+
+enum Tier {
+  SELF_SERVE
+  STANDARD
+  WHITE_GLOVE
+}
+
+model OrderData {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+  key     String
+  value   String
+}
+
+model Document {
+  id        String       @id @default(cuid())
+  orderId   String
+  order     Order        @relation(fields: [orderId], references: [id])
+  tenantId  String
+  type      DocumentType
+  r2Key     String
+  filename  String
+  deletedAt DateTime?
+  createdAt DateTime     @default(now())
+}
+
+enum DocumentType {
+  FILING_SHEET
+  ARTICLES_OF_ORG
+  OPERATING_AGREEMENT
+  EIN_CONFIRMATION
+  FILING_RECEIPT
+  CERTIFICATE
+}
+
+model Reminder {
+  id         String    @id @default(cuid())
+  orderId    String
+  order      Order     @relation(fields: [orderId], references: [id])
+  customerId String
+  type       String
+  sendAt     DateTime
+  sentAt     DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  actorId    String
+  entityType String
+  entityId   String
+  action     String
+  meta       Json?
+  createdAt  DateTime @default(now())
+}
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  provider    String
+  eventId     String
+  processedAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+}

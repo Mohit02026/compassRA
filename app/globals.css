@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  /* Core brand */
+  --color-navy:         oklch(0.22 0.06 245);
+  --color-navy-mid:     oklch(0.32 0.09 245);
+  --color-navy-light:   oklch(0.42 0.08 245);
+  --color-blue:         oklch(0.56 0.18 250);
+  --color-blue-light:   oklch(0.72 0.14 250);
+  --color-amber:        oklch(0.72 0.14 60);
+
+  /* Surfaces */
+  --color-bg:           oklch(0.97 0.005 240);
+  --color-surface:      oklch(1.00 0.000 0);
+  --color-border:       oklch(0.90 0.01 245);
+  --color-muted:        oklch(0.55 0.02 245);
+
+  /* Status — INTAKE */
+  --color-intake-bg:     oklch(0.94 0.04 250);
+  --color-intake-text:   oklch(0.45 0.14 250);
+  --color-intake-border: oklch(0.80 0.08 250);
+
+  /* Status — REVIEW */
+  --color-review-bg:     oklch(0.96 0.05 60);
+  --color-review-text:   oklch(0.50 0.14 60);
+  --color-review-border: oklch(0.82 0.10 60);
+
+  /* Status — FILED */
+  --color-filed-bg:     oklch(0.91 0.06 250);
+  --color-filed-text:   oklch(0.38 0.16 250);
+  --color-filed-border: oklch(0.72 0.12 250);
+
+  /* Status — COMPLETED */
+  --color-completed-bg:     oklch(0.94 0.06 145);
+  --color-completed-text:   oklch(0.40 0.14 145);
+  --color-completed-border: oklch(0.75 0.12 145);
+
+  /* Status — EXCEPTION */
+  --color-exception-bg:     oklch(0.95 0.05 25);
+  --color-exception-text:   oklch(0.45 0.18 25);
+  --color-exception-border: oklch(0.78 0.14 25);
+
+  --radius:    0.5rem;
+  --radius-sm: 0.375rem;
+  --radius-lg: 0.75rem;
+
+  /* Fonts */
+  --font-jakarta: var(--font-plus-jakarta-sans);
+  --font-dm:      var(--font-dm-sans);
+  --font-inter:   var(--font-inter);
+}

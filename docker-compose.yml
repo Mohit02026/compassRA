@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: compass-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: compass
+      POSTGRES_PASSWORD: compass
+      POSTGRES_DB: compass_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - compass_pgdata:/var/lib/postgresql/data
+
+volumes:
+  compass_pgdata:

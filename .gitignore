@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.env
+.env.local
+dist/
+*.log
+.DS_Store
+
+# Local planning docs — never commit
+CLAUDE.md
+architecture.md
+build-plan.md
+handoff.md
+session.md
+issues.md
