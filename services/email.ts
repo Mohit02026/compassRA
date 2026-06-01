@@ -4,6 +4,7 @@ import WelcomeEmail from '@/emails/WelcomeEmail'
 import OrderFiledEmail from '@/emails/OrderFiledEmail'
 import OrderCompletedEmail from '@/emails/OrderCompletedEmail'
 import ExceptionEmail from '@/emails/ExceptionEmail'
+import AnnualReportReminderEmail from '@/emails/AnnualReportReminderEmail'
 
 const portalUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
@@ -106,6 +107,37 @@ export async function sendException(payload: ExceptionPayload): Promise<void> {
     from: FROM,
     to: payload.to,
     subject: 'Action needed on your filing',
+    html,
+  })
+}
+
+interface ReminderEmailPayload {
+  to: string
+  customerName: string
+  businessName: string
+  daysUntilDue: number
+  dueDate: string
+}
+
+export async function sendAnnualReportReminder(payload: ReminderEmailPayload): Promise<void> {
+  if (isMock) {
+    console.log(`[Email mock] AnnualReportReminderEmail → ${payload.to} (${payload.daysUntilDue}d)`)
+    return
+  }
+
+  const html = await render(
+    AnnualReportReminderEmail({ ...payload, portalUrl: `${portalUrl}/portal/dashboard` })
+  )
+
+  const subject =
+    payload.daysUntilDue <= 7
+      ? `⚠️ Annual report due in ${payload.daysUntilDue} day${payload.daysUntilDue !== 1 ? 's' : ''}`
+      : `Annual report reminder — ${payload.dueDate}`
+
+  await getResend().emails.send({
+    from: FROM,
+    to: payload.to,
+    subject,
     html,
   })
 }
