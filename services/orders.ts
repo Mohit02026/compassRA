@@ -3,8 +3,21 @@ import { ServiceType, Tier, OrderStatus } from '@prisma/client'
 import { encrypt, SENSITIVE_KEYS } from '@/lib/encryption'
 import { uploadToR2 } from '@/lib/r2'
 import { generateFilingSheet } from '@/services/pdf'
-import { sendWelcome } from '@/services/email'
+import { sendWelcome, sendOrderFiled, sendOrderCompleted, sendException } from '@/services/email'
 import { createCustomerWithUser } from '@/services/customers'
+
+// Legal status transitions — EXCEPTION can come from REVIEW or FILED, reopens to REVIEW
+const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  INTAKE: [OrderStatus.REVIEW],
+  REVIEW: [OrderStatus.FILED, OrderStatus.EXCEPTION],
+  FILED: [OrderStatus.COMPLETED, OrderStatus.EXCEPTION],
+  COMPLETED: [],
+  EXCEPTION: [OrderStatus.REVIEW],
+}
+
+export function isLegalTransition(from: OrderStatus, to: OrderStatus): boolean {
+  return TRANSITIONS[from]?.includes(to) ?? false
+}
 
 export interface CreateOrderInput {
   tenantId: string
@@ -185,6 +198,62 @@ async function generateAndUploadFilingSheet(params: {
   } catch (err) {
     // Non-blocking — log but don't crash the order creation
     console.error('[PDF] Failed to generate/upload filing sheet:', err)
+  }
+}
+
+export interface UpdateStatusInput {
+  orderId: string
+  tenantId: string
+  actorId: string
+  toStatus: OrderStatus
+  note?: string
+}
+
+export async function updateStatus(input: UpdateStatusInput): Promise<void> {
+  await setPrismaContext(input.tenantId)
+
+  const order = await prisma.order.findFirst({
+    where: { id: input.orderId, tenantId: input.tenantId, deletedAt: null },
+    include: { customer: { include: { user: true } } },
+  })
+
+  if (!order) throw new Error('Order not found')
+  if (!isLegalTransition(order.status, input.toStatus)) {
+    throw new Error(`Illegal transition: ${order.status} → ${input.toStatus}`)
+  }
+
+  const timestamps: Record<string, Date> = {}
+  if (input.toStatus === OrderStatus.FILED) timestamps.filedAt = new Date()
+  if (input.toStatus === OrderStatus.COMPLETED) timestamps.completedAt = new Date()
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: input.orderId },
+      data: { status: input.toStatus, ...timestamps },
+    })
+
+    await tx.auditLog.create({
+      data: {
+        tenantId: input.tenantId,
+        actorId: input.actorId,
+        entityType: 'Order',
+        entityId: input.orderId,
+        action: `STATUS_${input.toStatus}`,
+        meta: { from: order.status, to: input.toStatus, note: input.note },
+      },
+    })
+  })
+
+  // Fire email async — each status has its own template
+  const email = order.customer.user.email
+  const customerName = order.customer.name
+
+  if (input.toStatus === OrderStatus.FILED) {
+    void sendOrderFiled({ to: email, customerName, orderId: order.id })
+  } else if (input.toStatus === OrderStatus.COMPLETED) {
+    void sendOrderCompleted({ to: email, customerName, orderId: order.id })
+  } else if (input.toStatus === OrderStatus.EXCEPTION) {
+    void sendException({ to: email, customerName, orderId: order.id, note: input.note })
   }
 }
 
