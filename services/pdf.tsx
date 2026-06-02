@@ -1,25 +1,14 @@
 import { Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer'
 import React from 'react'
 
+// Compass RA details — shown on both internal filing sheet and Articles of Org
 const RA_NAME = 'Compass Registered Agent LLC'
-const RA_ADDRESS = '123 Business Ave, Tallahassee, FL 32301'
+const RA_ADDRESS = '8 The Green Suite 300, Dover, DE 19901'
+const RA_COUNTY = 'Kent'
 
-interface FilingSheetData {
-  orderId: string
-  generatedAt: string
-  businessName: string
-  serviceType: string
-  state: string
-  principalAddress?: string
-  mailingAddress?: string
-  organizerName?: string
-  organizerEmail?: string
-  organizerPhone?: string
-  addOns: string[]
-  internalNotes?: string
-}
+// ─── Shared styles ────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const base = StyleSheet.create({
   page: {
     fontFamily: 'Helvetica',
     fontSize: 10,
@@ -39,14 +28,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica-Bold',
     color: '#1a2744',
   },
-  headerMeta: {
-    fontSize: 8,
-    color: '#666',
-    textAlign: 'right',
-  },
-  section: {
-    marginBottom: 14,
-  },
+  headerMeta: { fontSize: 8, color: '#666', textAlign: 'right' },
+  section: { marginBottom: 14 },
   sectionTitle: {
     fontSize: 9,
     fontFamily: 'Helvetica-Bold',
@@ -58,20 +41,9 @@ const styles = StyleSheet.create({
     borderBottomColor: '#ddd',
     paddingBottom: 3,
   },
-  row: {
-    flexDirection: 'row',
-    marginBottom: 4,
-  },
-  label: {
-    width: 140,
-    color: '#666',
-    fontSize: 9,
-  },
-  value: {
-    flex: 1,
-    color: '#222',
-    fontSize: 9,
-  },
+  row: { flexDirection: 'row', marginBottom: 4 },
+  label: { width: 160, color: '#666', fontSize: 9 },
+  value: { flex: 1, color: '#222', fontSize: 9 },
   footer: {
     position: 'absolute',
     bottom: 30,
@@ -92,119 +64,128 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     borderRadius: 2,
   },
-  warningText: {
-    fontSize: 9,
-    color: '#7a5c00',
+  warningText: { fontSize: 9, color: '#7a5c00' },
+  fieldBox: {
+    borderWidth: 0.5,
+    borderColor: '#bbb',
+    padding: '6 8',
+    marginBottom: 8,
+    borderRadius: 2,
   },
+  fieldLabel: { fontSize: 8, color: '#666', marginBottom: 2 },
+  fieldValue: { fontSize: 10, color: '#111' },
+  articleTitle: {
+    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
+    color: '#1a2744',
+    marginBottom: 4,
+  },
+  divider: { borderBottomWidth: 0.5, borderBottomColor: '#ddd', marginBottom: 10 },
 })
+
+// ─── INTERNAL FILING SHEET ────────────────────────────────────────────────────
+
+interface FilingSheetData {
+  orderId: string
+  generatedAt: string
+  businessName: string
+  serviceType: string
+  state: string
+  principalAddress?: string
+  mailingAddress?: string
+  organizerName?: string
+  organizerEmail?: string
+  organizerPhone?: string
+  addOns: string[]
+  internalNotes?: string
+}
 
 function FilingSheetDocument({ data }: { data: FilingSheetData }) {
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.logoText}>Compass</Text>
+      <Page size="A4" style={base.page}>
+        <View style={base.header}>
+          <Text style={base.logoText}>Compass</Text>
           <View>
-            <Text style={styles.headerMeta}>Order ID: {data.orderId}</Text>
-            <Text style={styles.headerMeta}>Generated: {data.generatedAt}</Text>
-            <Text style={styles.headerMeta}>INTERNAL USE ONLY</Text>
+            <Text style={base.headerMeta}>Order ID: {data.orderId}</Text>
+            <Text style={base.headerMeta}>Generated: {data.generatedAt}</Text>
+            <Text style={base.headerMeta}>INTERNAL USE ONLY</Text>
           </View>
         </View>
 
-        {/* Warning */}
-        <View style={styles.warningBox}>
-          <Text style={styles.warningText}>
+        <View style={base.warningBox}>
+          <Text style={base.warningText}>
             QC before filing. Verify all details on Sunbiz after submission.
           </Text>
         </View>
 
-        {/* Business Info */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Business Information</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>LLC Name</Text>
-            <Text style={styles.value}>{data.businessName}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Service Type</Text>
-            <Text style={styles.value}>{data.serviceType}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>State</Text>
-            <Text style={styles.value}>{data.state}</Text>
-          </View>
+        <View style={base.section}>
+          <Text style={base.sectionTitle}>Business Information</Text>
+          <Row label="LLC Name" value={data.businessName} />
+          <Row label="Service Type" value={data.serviceType} />
+          <Row label="State" value={data.state} />
         </View>
 
-        {/* Addresses */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Addresses</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Principal Address</Text>
-            <Text style={styles.value}>{data.principalAddress ?? '—'}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Mailing Address</Text>
-            <Text style={styles.value}>{data.mailingAddress ?? 'Same as principal'}</Text>
-          </View>
+        <View style={base.section}>
+          <Text style={base.sectionTitle}>Addresses</Text>
+          <Row label="Principal Address" value={data.principalAddress ?? '—'} />
+          <Row label="Mailing Address" value={data.mailingAddress ?? 'Same as principal'} />
         </View>
 
-        {/* Registered Agent */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Registered Agent</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>RA Name</Text>
-            <Text style={styles.value}>{RA_NAME}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>RA Address</Text>
-            <Text style={styles.value}>{RA_ADDRESS}</Text>
-          </View>
+        <View style={base.section}>
+          <Text style={base.sectionTitle}>Registered Agent</Text>
+          <Row label="RA Name" value={RA_NAME} />
+          <Row label="RA Address" value={RA_ADDRESS} />
         </View>
 
-        {/* Organizer */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Organizer / Authorized Signer</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Name</Text>
-            <Text style={styles.value}>{data.organizerName ?? '—'}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Email</Text>
-            <Text style={styles.value}>{data.organizerEmail ?? '—'}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Phone</Text>
-            <Text style={styles.value}>{data.organizerPhone ?? '—'}</Text>
-          </View>
+        <View style={base.section}>
+          <Text style={base.sectionTitle}>Organizer / Authorized Signer</Text>
+          <Row label="Name" value={data.organizerName ?? '—'} />
+          <Row label="Email" value={data.organizerEmail ?? '—'} />
+          <Row label="Phone" value={data.organizerPhone ?? '—'} />
         </View>
 
-        {/* Add-ons */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Add-ons Ordered</Text>
-          <View style={styles.row}>
-            <Text style={styles.value}>
+        <View style={base.section}>
+          <Text style={base.sectionTitle}>Add-ons Ordered</Text>
+          <View style={base.row}>
+            <Text style={base.value}>
               {data.addOns.length > 0 ? data.addOns.join(', ') : 'None'}
             </Text>
           </View>
         </View>
 
-        {/* Internal Notes */}
         {data.internalNotes ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Internal Notes</Text>
-            <View style={styles.row}>
-              <Text style={styles.value}>{data.internalNotes}</Text>
+          <View style={base.section}>
+            <Text style={base.sectionTitle}>Internal Notes</Text>
+            <View style={base.row}>
+              <Text style={base.value}>{data.internalNotes}</Text>
             </View>
           </View>
         ) : null}
 
-        {/* Footer */}
-        <Text style={styles.footer}>
+        <Text style={base.footer}>
           Compass Registered Agent — Filed. Done. Active. | QC before filing. Verify on Sunbiz after submission.
         </Text>
       </Page>
     </Document>
+  )
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={base.row}>
+      <Text style={base.label}>{label}</Text>
+      <Text style={base.value}>{value}</Text>
+    </View>
+  )
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={base.fieldBox}>
+      <Text style={base.fieldLabel}>{label}</Text>
+      <Text style={base.fieldValue}>{value || '—'}</Text>
+    </View>
   )
 }
 
@@ -216,3 +197,192 @@ export async function generateFilingSheet(data: FilingSheetData): Promise<Buffer
 }
 
 export type { FilingSheetData }
+
+// ─── ARTICLES OF ORGANIZATION — mirrors actual FL SunBiz form ────────────────
+// Layout follows the official DR-621 field order so Bridget can QC field-by-field.
+
+export interface ArticlesOfOrgData {
+  orderId: string
+  generatedAt: string
+  // Article I
+  llcName: string
+  // Article II
+  principalStreet: string
+  principalCity: string
+  principalState: string
+  principalZip: string
+  mailingStreet?: string
+  mailingCity?: string
+  mailingState?: string
+  mailingZip?: string
+  // Article III — RA
+  raName: string
+  raStreet: string
+  raCity: string
+  raCounty: string
+  raState: string
+  raZip: string
+  // Article IV — Management
+  managementType: 'member-managed' | 'manager-managed'
+  members: Array<{ name: string; title: string; address: string; ownershipPct?: string }>
+  // Article V — Effective date (blank = immediate)
+  effectiveDate?: string
+  // Signature block
+  organizerName: string
+  organizerDate: string
+}
+
+function ArticlesOfOrgDocument({ data }: { data: ArticlesOfOrgData }) {
+  return (
+    <Document>
+      <Page size="LETTER" style={base.page}>
+        {/* Header */}
+        <View style={base.header}>
+          <View>
+            <Text style={base.logoText}>Articles of Organization</Text>
+            <Text style={{ fontSize: 9, color: '#666', marginTop: 2 }}>
+              Florida Limited Liability Company — State of Florida
+            </Text>
+          </View>
+          <View>
+            <Text style={base.headerMeta}>Order ID: {data.orderId}</Text>
+            <Text style={base.headerMeta}>Prepared: {data.generatedAt}</Text>
+          </View>
+        </View>
+
+        <View style={base.warningBox}>
+          <Text style={base.warningText}>
+            QC DRAFT — verify each field against client submission before filing on SunBiz.
+          </Text>
+        </View>
+
+        {/* Article I — Name */}
+        <View style={base.section}>
+          <Text style={base.articleTitle}>Article I — Name of Limited Liability Company</Text>
+          <Field label="LLC Name (must end in LLC, L.L.C., or Limited Liability Company)" value={data.llcName} />
+        </View>
+
+        <View style={base.divider} />
+
+        {/* Article II — Principal Office */}
+        <View style={base.section}>
+          <Text style={base.articleTitle}>Article II — Principal Office Address</Text>
+          <Field label="Street Address (no P.O. Box)" value={data.principalStreet} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flex: 2 }}>
+              <Field label="City" value={data.principalCity} />
+            </View>
+            <View style={{ width: 40 }}>
+              <Field label="State" value={data.principalState} />
+            </View>
+            <View style={{ width: 70 }}>
+              <Field label="ZIP" value={data.principalZip} />
+            </View>
+          </View>
+          {data.mailingStreet && data.mailingStreet !== data.principalStreet && (
+            <>
+              <Text style={{ fontSize: 9, color: '#666', marginTop: 6, marginBottom: 4 }}>
+                Mailing Address (if different):
+              </Text>
+              <Field label="Mailing Street" value={data.mailingStreet} />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flex: 2 }}>
+                  <Field label="City" value={data.mailingCity ?? ''} />
+                </View>
+                <View style={{ width: 40 }}>
+                  <Field label="State" value={data.mailingState ?? ''} />
+                </View>
+                <View style={{ width: 70 }}>
+                  <Field label="ZIP" value={data.mailingZip ?? ''} />
+                </View>
+              </View>
+            </>
+          )}
+        </View>
+
+        <View style={base.divider} />
+
+        {/* Article III — Registered Agent */}
+        <View style={base.section}>
+          <Text style={base.articleTitle}>Article III — Registered Agent and Registered Office</Text>
+          <Field label="Name of Registered Agent" value={data.raName} />
+          <Field label="Street Address of Registered Office (no P.O. Box)" value={data.raStreet} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flex: 2 }}>
+              <Field label="City" value={data.raCity} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Field label="County" value={data.raCounty} />
+            </View>
+            <View style={{ width: 40 }}>
+              <Field label="State" value={data.raState} />
+            </View>
+            <View style={{ width: 70 }}>
+              <Field label="ZIP" value={data.raZip} />
+            </View>
+          </View>
+        </View>
+
+        <View style={base.divider} />
+
+        {/* Article IV — Management */}
+        <View style={base.section}>
+          <Text style={base.articleTitle}>Article IV — Management</Text>
+          <Field
+            label="Management Type"
+            value={
+              data.managementType === 'member-managed'
+                ? 'Member-Managed (managed by members)'
+                : 'Manager-Managed (managed by one or more managers)'
+            }
+          />
+          {data.members.map((m, i) => (
+            <View key={i} style={{ marginTop: 6 }}>
+              <Text style={{ fontSize: 8, color: '#888', marginBottom: 2 }}>
+                {data.managementType === 'member-managed' ? `Member ${i + 1}` : `Manager ${i + 1}`}
+                {m.ownershipPct ? ` — ${m.ownershipPct}% ownership` : ''}
+              </Text>
+              <Field label="Name" value={m.name} />
+              <Field label="Address" value={m.address} />
+            </View>
+          ))}
+        </View>
+
+        <View style={base.divider} />
+
+        {/* Article V — Effective Date */}
+        <View style={base.section}>
+          <Text style={base.articleTitle}>Article V — Effective Date</Text>
+          <Field
+            label="Effective Date (leave blank for immediate effectiveness upon filing)"
+            value={data.effectiveDate ?? 'Immediate — upon filing'}
+          />
+        </View>
+
+        <View style={base.divider} />
+
+        {/* Signature */}
+        <View style={base.section}>
+          <Text style={base.articleTitle}>Signature of Organizer / Authorized Representative</Text>
+          <Field label="Name of Organizer" value={data.organizerName} />
+          <Field label="Date" value={data.organizerDate} />
+          <View style={{ marginTop: 24, borderBottomWidth: 0.5, borderBottomColor: '#555', width: 240 }} />
+          <Text style={{ fontSize: 8, color: '#888', marginTop: 4 }}>
+            Authorized Signature — {data.organizerName}
+          </Text>
+        </View>
+
+        <Text style={base.footer}>
+          Compass Registered Agent — Draft for QC only. Do not distribute to client.
+        </Text>
+      </Page>
+    </Document>
+  )
+}
+
+export async function generateArticlesOfOrg(data: ArticlesOfOrgData): Promise<Buffer> {
+  const instance = pdf(<ArticlesOfOrgDocument data={data} />)
+  const blob = await instance.toBlob()
+  const arrayBuffer = await blob.arrayBuffer()
+  return Buffer.from(arrayBuffer)
+}

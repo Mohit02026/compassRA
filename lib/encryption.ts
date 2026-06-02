@@ -47,4 +47,4 @@ export function decrypt(stored: string): string {
 }
 
 // Sensitive OrderData keys that must always be encrypted at rest
-export const SENSITIVE_KEYS = new Set(['ssn', 'ein', 'dob'])
+export const SENSITIVE_KEYS = new Set(['ssn', 'ein', 'dob', 'itin'])

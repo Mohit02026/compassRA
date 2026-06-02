@@ -35,6 +35,24 @@ const createOrderSchema = z.object({
   addOnEin: z.boolean().optional(),
   addOnOperatingAgreement: z.boolean().optional(),
   addOnCertificateOfStatus: z.boolean().optional(),
+
+  // LLC Formation extras
+  managementType: z.string().optional(),
+  effectiveDate: z.string().optional(),
+  members: z.array(z.object({ name: z.string(), ownershipPct: z.string() })).optional(),
+
+  // Annual report extras
+  flDocNumber: z.string().optional(),
+
+  // EIN fields
+  einMemberCount: z.string().optional(),
+  einResponsibleParty: z.string().optional(),
+  einTaxIdType: z.enum(['ssn', 'itin']).optional(),
+  einTaxId: z.string().optional(),
+  einBusinessPurpose: z.string().max(50).optional(),
+  einDateStarted: z.string().optional(),
+  einReasonApplying: z.string().optional(),
+  einIsUSCitizen: z.boolean().optional(),
 })
 
 export async function POST(req: NextRequest) {

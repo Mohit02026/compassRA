@@ -53,6 +53,24 @@ export interface CreateOrderInput {
   addOnEin?: boolean
   addOnOperatingAgreement?: boolean
   addOnCertificateOfStatus?: boolean
+
+  // LLC Formation extras
+  managementType?: string
+  effectiveDate?: string
+  members?: Array<{ name: string; ownershipPct: string }>
+
+  // Annual report extras
+  flDocNumber?: string
+
+  // EIN fields (stored in OrderData, sensitive ones encrypted)
+  einMemberCount?: string
+  einResponsibleParty?: string
+  einTaxIdType?: string
+  einTaxId?: string          // stored under key 'ssn' or 'itin' depending on einTaxIdType
+  einBusinessPurpose?: string
+  einDateStarted?: string
+  einReasonApplying?: string
+  einIsUSCitizen?: boolean
 }
 
 export interface CreateOrderResult {
@@ -90,6 +108,32 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     addOns: addOns.join(','),
     serviceFee: String(input.serviceFee),
     stateFee: String(input.stateFee),
+  }
+
+  // LLC Formation extras
+  if (input.serviceType === ServiceType.LLC_FORMATION) {
+    if (input.managementType) orderDataFields.managementType = input.managementType
+    if (input.effectiveDate) orderDataFields.effectiveDate = input.effectiveDate
+    if (input.members && input.members.length > 0) {
+      orderDataFields.members = JSON.stringify(input.members)
+    }
+  }
+
+  // Annual report extras
+  if (input.flDocNumber) orderDataFields.flDocNumber = input.flDocNumber
+
+  // EIN fields — stored individually for structured access
+  if (input.addOnEin) {
+    if (input.einMemberCount) orderDataFields.einMemberCount = input.einMemberCount
+    if (input.einResponsibleParty) orderDataFields.einResponsibleParty = input.einResponsibleParty
+    if (input.einBusinessPurpose) orderDataFields.einBusinessPurpose = input.einBusinessPurpose
+    if (input.einDateStarted) orderDataFields.einDateStarted = input.einDateStarted
+    if (input.einReasonApplying) orderDataFields.einReasonApplying = input.einReasonApplying
+    orderDataFields.einIsUSCitizen = String(input.einIsUSCitizen ?? true)
+    // Tax ID stored under 'ssn' or 'itin' — both are SENSITIVE_KEYS
+    if (input.einTaxId && input.einTaxIdType) {
+      orderDataFields[input.einTaxIdType] = input.einTaxId
+    }
   }
 
   // 4. Create order + orderData in a transaction

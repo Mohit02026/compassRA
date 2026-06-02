@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
+import { EinFieldset, type EinFields } from '@/components/ops/EinFieldset'
 
 const RA_NAME = 'Compass Registered Agent LLC'
 const RA_ADDRESS = '123 Business Ave, Tallahassee, FL 32301'
@@ -116,7 +117,38 @@ export default function NewOrderForm() {
     addOnEin: false,
     addOnOperatingAgreement: false,
     addOnCertificateOfStatus: false,
+    // LLC Formation fields
+    managementType: 'member-managed',
+    effectiveDateType: 'immediate',
+    effectiveDate: '',
   })
+
+  // LLC members list
+  const [members, setMembers] = useState([{ name: '', ownershipPct: '' }])
+
+  // EIN fields
+  const [einFields, setEinFields] = useState<EinFields>({
+    einMemberCount: '',
+    einResponsibleParty: '',
+    einTaxIdType: 'ssn',
+    einTaxId: '',
+    einBusinessPurpose: '',
+    einDateStarted: '',
+    einReasonApplying: '',
+    einIsUSCitizen: true,
+  })
+
+  function addMember() {
+    setMembers((prev) => [...prev, { name: '', ownershipPct: '' }])
+  }
+
+  function removeMember(i: number) {
+    setMembers((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
+  function setMember(i: number, field: 'name' | 'ownershipPct', value: string) {
+    setMembers((prev) => prev.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)))
+  }
 
   function set(field: string, value: string | boolean) {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -148,6 +180,14 @@ export default function NewOrderForm() {
           organizerPhone: form.organizerPhone || undefined,
           paymentRef: form.paymentRef || undefined,
           internalNotes: form.internalNotes || undefined,
+          // LLC Formation extras
+          members: form.serviceType === 'LLC_FORMATION' ? members : undefined,
+          effectiveDate:
+            form.serviceType === 'LLC_FORMATION' && form.effectiveDateType === 'future'
+              ? form.effectiveDate
+              : undefined,
+          // EIN extras (only when add-on selected)
+          ...(form.addOnEin ? einFields : {}),
         }),
       })
 
@@ -271,6 +311,91 @@ export default function NewOrderForm() {
             </Field>
           </div>
         </SectionCard>
+
+        {/* LLC Formation extras — only shown for LLC_FORMATION */}
+        {form.serviceType === 'LLC_FORMATION' && (
+          <SectionCard title="LLC Formation Details">
+            <div className="grid grid-cols-2 gap-4">
+              {/* Management type */}
+              <Field label="Management Structure" required>
+                <Select
+                  value={form.managementType}
+                  onChange={(e) => set('managementType', e.target.value)}
+                >
+                  <option value="member-managed">Member-Managed</option>
+                  <option value="manager-managed">Manager-Managed</option>
+                </Select>
+              </Field>
+
+              {/* Effective date */}
+              <Field label="Effective Date">
+                <Select
+                  value={form.effectiveDateType}
+                  onChange={(e) => set('effectiveDateType', e.target.value)}
+                >
+                  <option value="immediate">Immediate (upon filing)</option>
+                  <option value="future">Future date</option>
+                </Select>
+              </Field>
+
+              {form.effectiveDateType === 'future' && (
+                <Field label="Effective Date (future)">
+                  <Input
+                    type="date"
+                    value={form.effectiveDate}
+                    onChange={(e) => set('effectiveDate', e.target.value)}
+                  />
+                </Field>
+              )}
+            </div>
+
+            {/* Members */}
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium" style={{ color: 'var(--color-navy-mid)' }}>
+                  Members / Owners
+                </p>
+                <button
+                  type="button"
+                  onClick={addMember}
+                  className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border"
+                  style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
+                >
+                  <Plus size={12} /> Add member
+                </button>
+              </div>
+              {members.map((m, i) => (
+                <div key={i} className="flex items-center gap-2 mb-2">
+                  <Input
+                    value={m.name}
+                    onChange={(e) => setMember(i, 'name', e.target.value)}
+                    placeholder="Full name"
+                    className="flex-1"
+                  />
+                  <div className="w-24">
+                    <Input
+                      value={m.ownershipPct}
+                      onChange={(e) => setMember(i, 'ownershipPct', e.target.value)}
+                      placeholder="% owned"
+                      type="number"
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                  {members.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeMember(i)}
+                      className="text-gray-400 hover:text-red-500"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        )}
 
         {/* 3. Registered Agent */}
         <SectionCard title="Registered Agent">
@@ -400,6 +525,16 @@ export default function NewOrderForm() {
                 {label}
               </label>
             ))}
+
+            {/* EIN detail fields — expanded when EIN add-on is checked */}
+            {form.addOnEin && (
+              <EinFieldset
+                values={einFields}
+                onChange={(field, value) =>
+                  setEinFields((prev) => ({ ...prev, [field]: value }))
+                }
+              />
+            )}
           </div>
 
           {/* Internal Notes */}

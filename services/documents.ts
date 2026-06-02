@@ -2,6 +2,7 @@ import { prisma, setPrismaContext } from '@/lib/prisma'
 import { DocumentType, OrderStatus } from '@prisma/client'
 import { uploadToR2, getPresignedUrl } from '@/lib/r2'
 import { updateStatus } from '@/services/orders'
+import { sendEinCompleted } from '@/services/email'
 
 interface UploadDocumentInput {
   orderId: string
@@ -30,20 +31,32 @@ export async function uploadDocument(input: UploadDocumentInput) {
     },
   })
 
-  // Uploading a CERTIFICATE automatically completes the order
-  if (input.type === DocumentType.CERTIFICATE) {
-    const order = await prisma.order.findFirst({
-      where: { id: input.orderId, tenantId: input.tenantId },
-    })
+  const order = await prisma.order.findFirst({
+    where: { id: input.orderId, tenantId: input.tenantId },
+    include: {
+      customer: { include: { user: true } },
+      orderData: { where: { key: 'businessName' } },
+    },
+  })
 
-    if (order && order.status === OrderStatus.FILED) {
-      await updateStatus({
-        orderId: input.orderId,
-        tenantId: input.tenantId,
-        actorId: input.actorId,
-        toStatus: OrderStatus.COMPLETED,
-      })
-    }
+  // Uploading a CERTIFICATE automatically completes the order
+  if (input.type === DocumentType.CERTIFICATE && order && order.status === OrderStatus.FILED) {
+    await updateStatus({
+      orderId: input.orderId,
+      tenantId: input.tenantId,
+      actorId: input.actorId,
+      toStatus: OrderStatus.COMPLETED,
+    })
+  }
+
+  // Uploading EIN_CONFIRMATION notifies the customer
+  if (input.type === DocumentType.EIN_CONFIRMATION && order) {
+    const businessName = order.orderData[0]?.value ?? 'your LLC'
+    void sendEinCompleted({
+      to: order.customer.user.email,
+      customerName: order.customer.name,
+      businessName,
+    })
   }
 
   return doc

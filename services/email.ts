@@ -6,6 +6,7 @@ import OrderCompletedEmail from '@/emails/OrderCompletedEmail'
 import ExceptionEmail from '@/emails/ExceptionEmail'
 import AnnualReportReminderEmail from '@/emails/AnnualReportReminderEmail'
 import LegalNoticeEmail from '@/emails/LegalNoticeEmail'
+import EinCompletedEmail from '@/emails/EinCompletedEmail'
 
 const portalUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
@@ -168,6 +169,35 @@ export async function sendLegalNotice(payload: LegalNoticePayload): Promise<void
     from: FROM,
     to: resolveRecipient(payload.to),
     subject: `You have a new legal notice — ${payload.businessName}`,
+    html,
+  })
+}
+
+interface EinCompletedPayload {
+  to: string
+  customerName: string
+  businessName: string
+}
+
+export async function sendEinCompleted(payload: EinCompletedPayload): Promise<void> {
+  if (isMock) {
+    console.log(`[Email mock] EinCompletedEmail → ${payload.to}`)
+    console.log(`  business: ${payload.businessName}`)
+    return
+  }
+
+  const html = await render(
+    EinCompletedEmail({
+      customerName: payload.customerName,
+      businessName: payload.businessName,
+      portalUrl: `${portalUrl}/portal/documents`,
+    })
+  )
+
+  await getResend().emails.send({
+    from: FROM,
+    to: resolveRecipient(payload.to),
+    subject: `Your EIN for ${payload.businessName} is confirmed`,
     html,
   })
 }
