@@ -100,6 +100,8 @@ export default function NewOrderForm() {
     state: 'FL',
     principalAddress: '',
     mailingAddress: '',
+    // RA (explicit upsell — only send if selected)
+    useCompassRA: false,
     // Organizer
     organizerName: '',
     organizerEmail: '',
@@ -272,14 +274,25 @@ export default function NewOrderForm() {
 
         {/* 3. Registered Agent */}
         <SectionCard title="Registered Agent">
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="RA Name">
-              <Input value={RA_NAME} readOnly />
-            </Field>
-            <Field label="RA Address">
-              <Input value={RA_ADDRESS} readOnly />
-            </Field>
-          </div>
+          <label className="flex items-center gap-2 mb-4 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.useCompassRA}
+              onChange={(e) => set('useCompassRA', e.target.checked)}
+              className="rounded"
+            />
+            Use Compass as Registered Agent (upsell)
+          </label>
+          {form.useCompassRA && (
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="RA Name">
+                <Input value={RA_NAME} readOnly />
+              </Field>
+              <Field label="RA Address">
+                <Input value={RA_ADDRESS} readOnly />
+              </Field>
+            </div>
+          )}
         </SectionCard>
 
         {/* 4. Organizer */}

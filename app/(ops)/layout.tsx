@@ -3,28 +3,9 @@ import { redirect } from 'next/navigation'
 import { Building2, LayoutDashboard, ClipboardList, FilePlus, FileText, Bell } from 'lucide-react'
 import Link from 'next/link'
 
-const NAV = [
-  {
-    section: 'OVERVIEW',
-    items: [
-      { href: '/ops/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    ],
-  },
-  {
-    section: 'OPERATIONS',
-    items: [
-      { href: '/ops/orders', icon: ClipboardList, label: 'Orders' },
-      { href: '/ops/orders/new', icon: FilePlus, label: 'New Order' },
-      { href: '/ops/documents', icon: FileText, label: 'Documents' },
-    ],
-  },
-  {
-    section: 'RETENTION',
-    items: [
-      { href: '/ops/reminders', icon: Bell, label: 'Reminders' },
-    ],
-  },
-]
+// Ops workbench nav is intentionally empty — Bridget uses GHL as the ops interface.
+// Routes and code are kept intact for internal use / fallback access.
+const NAV: { section: string; items: { href: string; icon: typeof LayoutDashboard; label: string }[] }[] = []
 
 export default async function OpsLayout({
   children,

@@ -1,14 +1,15 @@
 import { OrderStatus } from '@prisma/client'
 
-const STAGE_ORDER: OrderStatus[] = ['INTAKE', 'REVIEW', 'FILED', 'COMPLETED']
+const STAGE_ORDER: OrderStatus[] = ['INTAKE', 'DATA_QC', 'READY_TO_FILE', 'FILED', 'COMPLETED']
 
 function stageState(
   stage: OrderStatus,
   current: OrderStatus
 ): 'completed' | 'active' | 'future' | 'exception' {
   if (current === 'EXCEPTION') {
+    // Show exception at DATA_QC position — that's where it can be reopened from
     const stageIdx = STAGE_ORDER.indexOf(stage)
-    const currentIdx = STAGE_ORDER.indexOf('REVIEW')
+    const currentIdx = STAGE_ORDER.indexOf('DATA_QC')
     if (stageIdx < currentIdx) return 'completed'
     if (stageIdx === currentIdx) return 'exception'
     return 'future'
@@ -21,11 +22,12 @@ function stageState(
 }
 
 const STAGE_LABELS: Record<OrderStatus, string> = {
-  INTAKE: 'Intake',
-  REVIEW: 'Review',
-  FILED: 'Filed',
-  COMPLETED: 'Completed',
-  EXCEPTION: 'Exception',
+  INTAKE:        'Intake',
+  DATA_QC:       'Data QC',
+  READY_TO_FILE: 'Ready to File',
+  FILED:         'Filed',
+  COMPLETED:     'Completed',
+  EXCEPTION:     'Exception',
 }
 
 interface Props {

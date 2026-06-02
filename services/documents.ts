@@ -57,6 +57,7 @@ export async function getDownloadUrl(documentId: string, tenantId: string): Prom
   })
 
   if (!doc) throw new Error('Document not found')
+  if (!doc.r2Key) throw new Error('Document has no R2 key (may be a Drive-only doc)')
 
   return getPresignedUrl(doc.r2Key)
 }

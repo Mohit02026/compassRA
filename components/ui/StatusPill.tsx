@@ -3,8 +3,10 @@ import { OrderStatus } from '@prisma/client'
 const STATUS_STYLES: Record<OrderStatus, string> = {
   INTAKE:
     'bg-[--color-intake-bg] text-[--color-intake-text] border border-[--color-intake-border]',
-  REVIEW:
+  DATA_QC:
     'bg-[--color-review-bg] text-[--color-review-text] border border-[--color-review-border]',
+  READY_TO_FILE:
+    'bg-amber-50 text-amber-700 border border-amber-200',
   FILED:
     'bg-[--color-filed-bg] text-[--color-filed-text] border border-[--color-filed-border]',
   COMPLETED:
@@ -14,11 +16,12 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
 }
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
-  INTAKE: 'Intake',
-  REVIEW: 'Review',
-  FILED: 'Filed',
-  COMPLETED: 'Completed',
-  EXCEPTION: 'Exception',
+  INTAKE:        'Intake',
+  DATA_QC:       'Data QC',
+  READY_TO_FILE: 'Ready to File',
+  FILED:         'Filed',
+  COMPLETED:     'Completed',
+  EXCEPTION:     'Exception',
 }
 
 interface Props {

@@ -51,27 +51,30 @@ model Customer {
 }
 
 model Order {
-  id            String      @id @default(cuid())
-  tenantId      String
-  tenant        Tenant      @relation(fields: [tenantId], references: [id])
-  customerId    String
-  customer      Customer    @relation(fields: [customerId], references: [id])
-  serviceType   ServiceType
-  status        OrderStatus @default(INTAKE)
-  tier          Tier
-  state         String      @default("FL")
-  totalAmount   Decimal
-  dueDate       DateTime?
-  filedAt       DateTime?
-  completedAt   DateTime?
-  internalNotes String?
-  paymentRef    String?
-  deletedAt     DateTime?
-  createdAt     DateTime    @default(now())
-  orderData     OrderData[]
-  documents     Document[]
-  reminders     Reminder[]
+  id               String        @id @default(cuid())
+  tenantId         String
+  tenant           Tenant        @relation(fields: [tenantId], references: [id])
+  customerId       String
+  customer         Customer      @relation(fields: [customerId], references: [id])
+  serviceType      ServiceType
+  status           OrderStatus   @default(INTAKE)
+  paymentStatus    PaymentStatus @default(PENDING)
+  tier             Tier
+  state            String        @default("FL")
+  totalAmount      Decimal
+  dueDate          DateTime?
+  filedAt          DateTime?
+  completedAt      DateTime?
+  internalNotes    String?
+  paymentRef       String?
+  ghlOpportunityId String?
+  deletedAt        DateTime?
+  createdAt        DateTime      @default(now())
+  orderData        OrderData[]
+  documents        Document[]
+  reminders        Reminder[]
 }
+
 
 enum ServiceType {
   ANNUAL_REPORT
@@ -81,10 +84,16 @@ enum ServiceType {
 
 enum OrderStatus {
   INTAKE
-  REVIEW
+  DATA_QC
+  READY_TO_FILE
   FILED
   COMPLETED
   EXCEPTION
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
 }
 
 enum Tier {
@@ -102,24 +111,39 @@ model OrderData {
 }
 
 model Document {
-  id        String       @id @default(cuid())
-  orderId   String
-  order     Order        @relation(fields: [orderId], references: [id])
-  tenantId  String
-  type      DocumentType
-  r2Key     String
-  filename  String
-  deletedAt DateTime?
-  createdAt DateTime     @default(now())
+  id          String       @id @default(cuid())
+  orderId     String
+  order       Order        @relation(fields: [orderId], references: [id])
+  tenantId    String
+  type        DocumentType
+  r2Key       String?
+  driveFileId String?
+  filename    String
+  deletedAt   DateTime?
+  createdAt   DateTime     @default(now())
 }
 
 enum DocumentType {
   FILING_SHEET
+  SS4_DRAFT
   ARTICLES_OF_ORG
   OPERATING_AGREEMENT
   EIN_CONFIRMATION
   FILING_RECEIPT
   CERTIFICATE
+  PAYMENT_INVOICE
+  LEGAL_NOTICE
+}
+
+model LegalNotice {
+  id          String    @id @default(cuid())
+  tenantId    String
+  customerId  String
+  r2Key       String
+  filename    String
+  receivedAt  DateTime
+  forwardedAt DateTime?
+  createdAt   DateTime  @default(now())
 }
 
 model Reminder {

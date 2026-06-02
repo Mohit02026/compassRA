@@ -18,6 +18,7 @@ interface Order {
   filedAt: string | null
   completedAt: string | null
   documents: { id: string }[]
+  businessName?: string
 }
 
 function formatService(s: string) {
@@ -89,10 +90,10 @@ export default function PortalDashboard() {
                   className="font-semibold text-base"
                   style={{ fontFamily: 'var(--font-jakarta)', color: 'var(--color-navy-mid)' }}
                 >
-                  {formatService(order.serviceType)}
+                  {order.businessName ?? formatService(order.serviceType)}
                 </p>
                 <p className="text-sm mt-0.5" style={{ color: 'var(--color-muted)' }}>
-                  {order.state}
+                  {formatService(order.serviceType)} · {order.state}
                   {order.dueDate ? ` · Due ${formatDate(order.dueDate)}` : ''}
                 </p>
               </div>

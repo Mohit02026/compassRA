@@ -1,10 +1,11 @@
 import { prisma, setPrismaContext } from '@/lib/prisma'
 import { OrderStatus, ServiceType } from '@prisma/client'
 import { sendAnnualReportReminder } from '@/services/email'
+import { enrollContactInWorkflow } from '@/lib/ghl'
 
-// Reminder intervals in days before due date
-const REMINDER_INTERVALS = [90, 60, 30, 7, 1] as const
-type ReminderType = '90day' | '60day' | '30day' | '7day' | '1day'
+// Reminder intervals in days before due date — matches workflow spec
+const REMINDER_INTERVALS = [90, 60, 30, 14, 7, 3] as const
+type ReminderType = '90day' | '60day' | '30day' | '14day' | '7day' | '3day'
 
 function daysToType(days: number): ReminderType {
   return `${days}day` as ReminderType
@@ -85,6 +86,16 @@ export async function processReminders(tenantId: string): Promise<ProcessReminde
       }
 
       try {
+        // GHL SMS automation takes priority when a workflow ID is configured.
+        // Compass also sends the email as a fallback — GHL deduplicates on its end.
+        const ghlWorkflowId = process.env[`GHL_REMINDER_WORKFLOW_${interval}DAY`]
+        const ghlContactId = order.orderData.find((d) => d.key === 'ghlContactId')?.value
+
+        if (ghlWorkflowId && ghlContactId) {
+          await enrollContactInWorkflow(ghlContactId, ghlWorkflowId)
+        }
+
+        // Always send Resend email as well (audit trail + portal CTA)
         await sendAnnualReportReminder({
           to: order.customer.user.email,
           customerName: order.customer.name,

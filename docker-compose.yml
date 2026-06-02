@@ -12,5 +12,39 @@ services:
     volumes:
       - compass_pgdata:/var/lib/postgresql/data
 
+  minio:
+    image: minio/minio:latest
+    container_name: compass-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: compass
+      MINIO_ROOT_PASSWORD: compass123
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console → http://localhost:9001
+    volumes:
+      - compass_minio:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Creates the bucket automatically on first start
+  minio-init:
+    image: minio/mc:latest
+    container_name: compass-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 compass compass123 &&
+        mc mb --ignore-existing local/compass-documents &&
+        echo 'Bucket ready.'
+      "
+
 volumes:
   compass_pgdata:
+  compass_minio:

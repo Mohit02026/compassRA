@@ -1,21 +1,28 @@
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { Readable } from 'stream'
 
+// R2_ENDPOINT overrides the default Cloudflare endpoint.
+// Set to http://localhost:9000 for local MinIO dev.
+// Leave unset in production — defaults to Cloudflare R2.
 function getClient(): S3Client {
+  const endpoint = process.env.R2_ENDPOINT
+    ?? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+
   return new S3Client({
     region: 'auto',
-    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    endpoint,
     credentials: {
       accessKeyId: process.env.R2_ACCESS_KEY_ID ?? '',
       secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? '',
     },
+    // Required for MinIO — it uses path-style URLs (localhost:9000/bucket/key)
+    // Cloudflare R2 also accepts path-style, so this is safe in both environments
+    forcePathStyle: true,
   })
 }
 
-const isMock = !process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID
+const isMock = !process.env.R2_ACCESS_KEY_ID
 
-// Stream a buffer to R2. Never buffers the full file in memory beyond what's passed in.
 export async function uploadToR2(
   key: string,
   body: Buffer,

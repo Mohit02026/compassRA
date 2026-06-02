@@ -12,12 +12,15 @@ interface Props {
 }
 
 const DOC_TYPE_LABELS: Record<DocumentType, string> = {
-  FILING_SHEET: 'Filing Sheet',
-  ARTICLES_OF_ORG: 'Articles of Organization',
+  FILING_SHEET:        'Filing Sheet',
+  SS4_DRAFT:           'SS-4 Draft',
+  ARTICLES_OF_ORG:     'Articles of Organization',
   OPERATING_AGREEMENT: 'Operating Agreement',
-  EIN_CONFIRMATION: 'EIN Confirmation',
-  FILING_RECEIPT: 'Filing Receipt',
-  CERTIFICATE: 'Certificate of Status',
+  EIN_CONFIRMATION:    'EIN Confirmation',
+  FILING_RECEIPT:      'Filing Receipt',
+  CERTIFICATE:         'Certificate of Status',
+  PAYMENT_INVOICE:     'Payment Invoice',
+  LEGAL_NOTICE:        'Legal Notice',
 }
 
 function formatService(s: string) {

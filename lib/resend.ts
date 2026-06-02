@@ -4,6 +4,12 @@ export const FROM = process.env.RESEND_FROM_EMAIL ?? 'noreply@compassregistereda
 
 export const isMock = !process.env.RESEND_API_KEY
 
+// In dev/test, redirect all outgoing email to this address instead of the real recipient.
+// Resend trial accounts can only send to verified emails — set RESEND_TEST_EMAIL to override.
+export function resolveRecipient(to: string): string {
+  return process.env.RESEND_TEST_EMAIL ?? to
+}
+
 // Lazy — only initialised when actually needed (avoids throw at module load with no key)
 let _client: Resend | null = null
 

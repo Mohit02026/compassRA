@@ -44,6 +44,19 @@ export async function GET(_req: NextRequest, { params }: Context) {
   }
 
   try {
+    // Drive docs: return the webViewLink directly (already public-readable)
+    if (doc.driveFileId && !doc.r2Key) {
+      const url = `https://drive.google.com/file/d/${doc.driveFileId}/view`
+      return NextResponse.json({ data: { url } })
+    }
+
+    if (!doc.r2Key) {
+      return NextResponse.json(
+        { error: { code: 404, message: 'Document has no download source' } },
+        { status: 404 }
+      )
+    }
+
     const url = await getPresignedUrl(doc.r2Key)
     return NextResponse.json({ data: { url } })
   } catch (err) {

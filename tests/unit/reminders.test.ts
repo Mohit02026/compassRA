@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 // Pure date math extracted from reminders service for unit testing
-const REMINDER_INTERVALS = [90, 60, 30, 7, 1] as const
+const REMINDER_INTERVALS = [90, 60, 30, 14, 7, 3] as const
 
 function daysUntil(date: Date, from: Date = new Date()): number {
   const now = new Date(from)
@@ -41,23 +41,31 @@ describe('daysUntil', () => {
   })
 })
 
-describe('reminder interval matching', () => {
+describe('reminder interval matching — [90, 60, 30, 14, 7, 3]', () => {
   it('triggers 90d reminder exactly at 90 days', () => {
     expect(shouldSendInterval(90, 90)).toBe(true)
   })
 
-  it('triggers 1d reminder exactly at 1 day', () => {
-    expect(shouldSendInterval(1, 1)).toBe(true)
+  it('triggers 3d reminder exactly at 3 days', () => {
+    expect(shouldSendInterval(3, 3)).toBe(true)
+  })
+
+  it('triggers 14d reminder exactly at 14 days', () => {
+    expect(shouldSendInterval(14, 14)).toBe(true)
   })
 
   it('does not trigger 30d reminder at 31 days', () => {
     expect(shouldSendInterval(31, 30)).toBe(false)
   })
 
-  // The window is [interval-1, interval] to handle crons that run a day late.
-  // Double-send is prevented by sentAt idempotency in the service, not by the window.
-  it('triggers 30d reminder at 29 days (cron-late window)', () => {
+  // Window is [interval-1, interval] to handle crons that run a day late.
+  // Double-send prevented by sentAt idempotency check in the service.
+  it('triggers 30d reminder at 29 days (late cron window)', () => {
     expect(shouldSendInterval(29, 30)).toBe(true)
+  })
+
+  it('triggers 14d reminder at 13 days (late cron window)', () => {
+    expect(shouldSendInterval(13, 14)).toBe(true)
   })
 
   it('each interval only fires once per window', () => {
@@ -72,11 +80,18 @@ describe('reminder interval matching', () => {
 
   it('no interval fires when overdue', () => {
     const now = new Date('2026-06-01')
-    const dueDate = addDays(now, -5) // 5 days past due
+    const dueDate = addDays(now, -5)
 
     const firing = REMINDER_INTERVALS.filter((interval) =>
       shouldSendInterval(daysUntil(dueDate, now), interval)
     )
     expect(firing).toHaveLength(0)
+  })
+
+  it('all 6 intervals are covered', () => {
+    expect(REMINDER_INTERVALS).toHaveLength(6)
+    expect(REMINDER_INTERVALS).toContain(14)
+    expect(REMINDER_INTERVALS).toContain(3)
+    expect(REMINDER_INTERVALS).not.toContain(1)
   })
 })

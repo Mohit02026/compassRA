@@ -1,4 +1,4 @@
-import { getResend, FROM, isMock } from '@/lib/resend'
+import { getResend, FROM, isMock, resolveRecipient } from '@/lib/resend'
 import { render } from '@react-email/components'
 import WelcomeEmail from '@/emails/WelcomeEmail'
 import OrderFiledEmail from '@/emails/OrderFiledEmail'
@@ -32,7 +32,7 @@ export async function sendWelcome(payload: WelcomeEmailPayload): Promise<void> {
 
   await getResend().emails.send({
     from: FROM,
-    to,
+    to: resolveRecipient(to),
     subject: `Your ${businessName} filing has started`,
     html,
   })
@@ -56,7 +56,7 @@ export async function sendOrderFiled(payload: FiledPayload): Promise<void> {
 
   await getResend().emails.send({
     from: FROM,
-    to: payload.to,
+    to: resolveRecipient(payload.to),
     subject: 'Your filing has been submitted',
     html,
   })
@@ -80,7 +80,7 @@ export async function sendOrderCompleted(payload: CompletedPayload): Promise<voi
 
   await getResend().emails.send({
     from: FROM,
-    to: payload.to,
+    to: resolveRecipient(payload.to),
     subject: 'Your LLC is active — documents ready',
     html,
   })
@@ -105,7 +105,7 @@ export async function sendException(payload: ExceptionPayload): Promise<void> {
 
   await getResend().emails.send({
     from: FROM,
-    to: payload.to,
+    to: resolveRecipient(payload.to),
     subject: 'Action needed on your filing',
     html,
   })
@@ -136,7 +136,7 @@ export async function sendAnnualReportReminder(payload: ReminderEmailPayload): P
 
   await getResend().emails.send({
     from: FROM,
-    to: payload.to,
+    to: resolveRecipient(payload.to),
     subject,
     html,
   })

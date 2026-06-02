@@ -10,7 +10,7 @@ interface Props {
   params: { id: string }
 }
 
-const STAGE_ORDER: OrderStatus[] = ['INTAKE', 'REVIEW', 'FILED', 'COMPLETED']
+const STAGE_ORDER: OrderStatus[] = ['INTAKE', 'DATA_QC', 'READY_TO_FILE', 'FILED', 'COMPLETED']
 
 function formatDate(iso: string | null) {
   if (!iso) return '—'
@@ -27,7 +27,7 @@ function stageState(
 ): 'completed' | 'active' | 'future' | 'exception' {
   if (current === 'EXCEPTION') {
     const stageIdx = STAGE_ORDER.indexOf(stage)
-    const currentIdx = STAGE_ORDER.indexOf('REVIEW')
+    const currentIdx = STAGE_ORDER.indexOf('DATA_QC')
     if (stageIdx < currentIdx) return 'completed'
     if (stageIdx === currentIdx) return 'exception'
     return 'future'
@@ -61,7 +61,7 @@ function StageTracker({ status }: { status: OrderStatus }) {
               }`}
               style={state === 'active' ? { backgroundColor: 'var(--color-navy)' } : {}}
             >
-              {stage.charAt(0) + stage.slice(1).toLowerCase()}
+              {stage === 'DATA_QC' ? 'Data QC' : stage === 'READY_TO_FILE' ? 'Ready to File' : stage.charAt(0) + stage.slice(1).toLowerCase()}
             </span>
             {i < STAGE_ORDER.length - 1 && (
               <span className="text-gray-300 text-sm select-none">——</span>
@@ -82,12 +82,15 @@ function StageTracker({ status }: { status: OrderStatus }) {
 }
 
 const DOC_TYPE_LABELS: Record<DocumentType, string> = {
-  FILING_SHEET: 'Filing Sheet',
-  ARTICLES_OF_ORG: 'Articles of Organization',
-  OPERATING_AGREEMENT: 'Operating Agreement',
-  EIN_CONFIRMATION: 'EIN Confirmation',
-  FILING_RECEIPT: 'Filing Receipt',
-  CERTIFICATE: 'Certificate of Status',
+  FILING_SHEET:       'Filing Sheet',
+  SS4_DRAFT:          'SS-4 Draft',
+  ARTICLES_OF_ORG:    'Articles of Organization',
+  OPERATING_AGREEMENT:'Operating Agreement',
+  EIN_CONFIRMATION:   'EIN Confirmation',
+  FILING_RECEIPT:     'Filing Receipt',
+  CERTIFICATE:        'Certificate of Status',
+  PAYMENT_INVOICE:    'Payment Invoice',
+  LEGAL_NOTICE:       'Legal Notice',
 }
 
 export default function OpsOrderDetailPage({ params }: Props) {
@@ -174,7 +177,7 @@ export default function OpsOrderDetailPage({ params }: Props) {
       <div className="flex items-start justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--color-navy-mid)' }}>
-            {order.customer.name}
+            {orderData.businessName ?? order.customer.name}
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--color-muted)' }}>
             {order.customer.email} · {order.state} · {formatService(order.serviceType)}
@@ -191,19 +194,39 @@ export default function OpsOrderDetailPage({ params }: Props) {
       {/* Stage tracker */}
       <StageTracker status={status} />
 
-      {/* Action buttons */}
+      {/* Action buttons — one per legal transition */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
         {status === 'INTAKE' && (
           <button
             disabled={transitioning}
-            onClick={() => transition(OrderStatus.REVIEW)}
+            onClick={() => transition(OrderStatus.DATA_QC)}
             className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white disabled:opacity-50"
             style={{ backgroundColor: 'var(--color-navy)' }}
           >
-            <CheckCircle size={14} /> Mark Under Review
+            <CheckCircle size={14} /> Move to Data QC
           </button>
         )}
-        {status === 'REVIEW' && (
+        {status === 'DATA_QC' && (
+          <>
+            <button
+              disabled={transitioning}
+              onClick={() => transition(OrderStatus.READY_TO_FILE)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white disabled:opacity-50"
+              style={{ backgroundColor: 'var(--color-navy)' }}
+            >
+              <CheckCircle size={14} /> Mark Ready to File
+            </button>
+            <button
+              disabled={transitioning}
+              onClick={() => setShowNote(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium border disabled:opacity-50"
+              style={{ borderColor: 'var(--color-border)' }}
+            >
+              <AlertTriangle size={14} className="text-orange-500" /> Flag Exception
+            </button>
+          </>
+        )}
+        {status === 'READY_TO_FILE' && (
           <>
             <button
               disabled={transitioning}
@@ -252,15 +275,15 @@ export default function OpsOrderDetailPage({ params }: Props) {
         {status === 'EXCEPTION' && (
           <button
             disabled={transitioning}
-            onClick={() => transition(OrderStatus.REVIEW)}
+            onClick={() => transition(OrderStatus.DATA_QC)}
             className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white"
             style={{ backgroundColor: 'var(--color-navy)' }}
           >
-            <RotateCcw size={14} /> Reopen to Review
+            <RotateCcw size={14} /> Reopen to Data QC
           </button>
         )}
 
-        {/* Upload any doc */}
+        {/* Generic upload for any doc type */}
         {status !== 'COMPLETED' && (
           <label
             className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium border cursor-pointer"
@@ -319,7 +342,6 @@ export default function OpsOrderDetailPage({ params }: Props) {
       <div className="flex gap-4 items-start">
         {/* Left — tabs */}
         <div className="flex-1 min-w-0">
-          {/* Tab bar */}
           <div className="flex border-b mb-0" style={{ borderColor: 'var(--color-border)' }}>
             {(['documents', 'notes'] as const).map((tab) => (
               <button
@@ -341,7 +363,6 @@ export default function OpsOrderDetailPage({ params }: Props) {
             ))}
           </div>
 
-          {/* Tab content */}
           <div
             className="border border-t-0 rounded-b-lg p-4 bg-white"
             style={{ borderColor: 'var(--color-border)' }}
@@ -397,15 +418,11 @@ export default function OpsOrderDetailPage({ params }: Props) {
 
         {/* Right sidebar */}
         <div className="w-72 shrink-0 flex flex-col gap-3">
-          {/* Order Details card */}
           <div
             className="border rounded-lg p-4 bg-white"
             style={{ borderColor: 'var(--color-border)' }}
           >
-            <p
-              className="text-sm font-semibold mb-3"
-              style={{ color: 'var(--color-navy-mid)' }}
-            >
+            <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-navy-mid)' }}>
               Order Details
             </p>
             <div className="space-y-2 text-sm">
@@ -413,6 +430,7 @@ export default function OpsOrderDetailPage({ params }: Props) {
               <Row label="Service" value={formatService(order.serviceType)} />
               <Row label="Tier" value={order.tier} />
               <Row label="State" value={order.state} />
+              <Row label="Payment" value={order.paymentStatus ?? '—'} />
               <Row label="Due Date" value={formatDate(order.dueDate)} />
               <Row label="Filed At" value={formatDate(order.filedAt)} />
               <Row label="Completed" value={formatDate(order.completedAt)} />
@@ -428,15 +446,11 @@ export default function OpsOrderDetailPage({ params }: Props) {
             </div>
           </div>
 
-          {/* Business Info card */}
           <div
             className="border rounded-lg p-4 bg-white"
             style={{ borderColor: 'var(--color-border)' }}
           >
-            <p
-              className="text-sm font-semibold mb-3"
-              style={{ color: 'var(--color-navy-mid)' }}
-            >
+            <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-navy-mid)' }}>
               Business Info
             </p>
             <div className="space-y-2 text-sm">
@@ -463,9 +477,7 @@ export default function OpsOrderDetailPage({ params }: Props) {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-2">
-      <span style={{ color: 'var(--color-muted)' }} className="text-xs">
-        {label}
-      </span>
+      <span style={{ color: 'var(--color-muted)' }} className="text-xs">{label}</span>
       <span className="text-right text-xs font-medium text-gray-900 truncate max-w-[160px]">
         {value}
       </span>

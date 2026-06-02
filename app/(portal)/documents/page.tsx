@@ -4,13 +4,17 @@ import { useEffect, useState } from 'react'
 import { FileText, Download, Lock } from 'lucide-react'
 import { OrderStatus, DocumentType } from '@prisma/client'
 
-const DOC_TYPE_LABELS: Record<DocumentType, string> = {
-  FILING_SHEET: 'Filing Sheet',
+// Internal ops docs — never shown to customers
+const OPS_INTERNAL_TYPES: DocumentType[] = ['FILING_SHEET', 'SS4_DRAFT'] as DocumentType[]
+
+const DOC_TYPE_LABELS: Partial<Record<DocumentType, string>> = {
   ARTICLES_OF_ORG: 'Articles of Organization',
   OPERATING_AGREEMENT: 'Operating Agreement',
   EIN_CONFIRMATION: 'EIN Confirmation',
   FILING_RECEIPT: 'Filing Receipt',
   CERTIFICATE: 'Certificate of Status',
+  PAYMENT_INVOICE: 'Payment Invoice',
+  LEGAL_NOTICE: 'Legal Notice',
 }
 
 interface DocItem {
@@ -49,10 +53,12 @@ export default function PortalDocumentsPage() {
       .then((j) => {
         const orders: any[] = j.data ?? []
         const allDocs: DocItem[] = orders.flatMap((o: any) =>
-          (o.documents ?? []).map((d: any) => ({
-            ...d,
-            order: { id: o.id, status: o.status, serviceType: o.serviceType, state: o.state },
-          }))
+          (o.documents ?? [])
+            .filter((d: any) => !OPS_INTERNAL_TYPES.includes(d.type))
+            .map((d: any) => ({
+              ...d,
+              order: { id: o.id, status: o.status, serviceType: o.serviceType, state: o.state },
+            }))
         )
         setDocs(allDocs)
         setLoading(false)

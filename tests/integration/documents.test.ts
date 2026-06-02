@@ -49,7 +49,8 @@ describe('uploadDocument', () => {
 
   it('uploading CERTIFICATE auto-completes a FILED order', async () => {
     const orderId = await makeOrder()
-    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.REVIEW })
+    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.DATA_QC })
+    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.READY_TO_FILE })
     await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.FILED })
 
     await uploadDocument({

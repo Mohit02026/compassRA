@@ -48,7 +48,7 @@ function KpiCard({
   )
 }
 
-const PIPELINE_STAGES: OrderStatus[] = ['INTAKE', 'REVIEW', 'FILED', 'COMPLETED', 'EXCEPTION']
+const PIPELINE_STAGES: OrderStatus[] = ['INTAKE', 'DATA_QC', 'READY_TO_FILE', 'FILED', 'COMPLETED', 'EXCEPTION']
 
 export default function OpsDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)

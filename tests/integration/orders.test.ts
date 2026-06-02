@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest'
 import { OrderStatus, ServiceType, Tier } from '@prisma/client'
-import { createOrder, getOrder, updateStatus, listOrders, isLegalTransition } from '@/services/orders'
+import { createOrder, getOrder, updateStatus, listOrders } from '@/services/orders'
 import { db, seedTestTenant, cleanDb } from './helpers'
 
 let ctx: Awaited<ReturnType<typeof seedTestTenant>>
@@ -27,6 +27,20 @@ const baseOrder = () => ({
   stateFee: 138.75,
 })
 
+// Helper: advance order through the full lifecycle
+async function advanceTo(orderId: string, status: OrderStatus) {
+  const chain: OrderStatus[] = [
+    OrderStatus.DATA_QC,
+    OrderStatus.READY_TO_FILE,
+    OrderStatus.FILED,
+    OrderStatus.COMPLETED,
+  ]
+  for (const s of chain) {
+    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: s })
+    if (s === status) break
+  }
+}
+
 describe('createOrder', () => {
   it('creates order and returns orderId + customerId', async () => {
     const result = await createOrder(baseOrder())
@@ -46,6 +60,12 @@ describe('createOrder', () => {
     expect(Number(order?.totalAmount)).toBeCloseTo(263.75)
   })
 
+  it('stores businessName in orderData', async () => {
+    const { orderId } = await createOrder(baseOrder())
+    const data = await db.orderData.findFirst({ where: { orderId, key: 'businessName' } })
+    expect(data?.value).toBe('Doe LLC')
+  })
+
   it('writes AuditLog entry on creation', async () => {
     const { orderId } = await createOrder(baseOrder())
     const logs = await db.auditLog.findMany({ where: { entityId: orderId } })
@@ -57,42 +77,38 @@ describe('createOrder', () => {
     await createOrder(baseOrder())
     await createOrder({ ...baseOrder(), businessName: 'Second LLC' })
     const customers = await db.customer.findMany({ where: { tenantId: ctx.tenant.id } })
-    // Should still be 1 customer (same email)
     expect(customers).toHaveLength(1)
   })
 })
 
 describe('updateStatus', () => {
-  it('INTAKE → REVIEW succeeds', async () => {
+  it('INTAKE → DATA_QC succeeds', async () => {
     const { orderId } = await createOrder(baseOrder())
-    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.REVIEW })
+    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.DATA_QC })
     const order = await getOrder(orderId, ctx.tenant.id)
-    expect(order?.status).toBe(OrderStatus.REVIEW)
+    expect(order?.status).toBe(OrderStatus.DATA_QC)
   })
 
   it('sets filedAt when transitioning to FILED', async () => {
     const { orderId } = await createOrder(baseOrder())
-    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.REVIEW })
-    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.FILED })
+    await advanceTo(orderId, OrderStatus.FILED)
     const order = await getOrder(orderId, ctx.tenant.id)
     expect(order?.filedAt).toBeTruthy()
   })
 
   it('sets completedAt when transitioning to COMPLETED', async () => {
     const { orderId } = await createOrder(baseOrder())
-    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.REVIEW })
-    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.FILED })
-    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.COMPLETED })
+    await advanceTo(orderId, OrderStatus.COMPLETED)
     const order = await getOrder(orderId, ctx.tenant.id)
     expect(order?.completedAt).toBeTruthy()
   })
 
   it('writes AuditLog on each transition', async () => {
     const { orderId } = await createOrder(baseOrder())
-    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.REVIEW })
+    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.DATA_QC })
     const logs = await db.auditLog.findMany({ where: { entityId: orderId }, orderBy: { createdAt: 'asc' } })
-    expect(logs).toHaveLength(2) // ORDER_CREATED + STATUS_REVIEW
-    expect(logs[1].action).toBe('STATUS_REVIEW')
+    expect(logs).toHaveLength(2) // ORDER_CREATED + STATUS_DATA_QC
+    expect(logs[1].action).toBe('STATUS_DATA_QC')
   })
 
   it('throws on illegal transition', async () => {
@@ -102,13 +118,13 @@ describe('updateStatus', () => {
     ).rejects.toThrow(/Illegal transition/)
   })
 
-  it('EXCEPTION → REVIEW (reopen) succeeds', async () => {
+  it('EXCEPTION → DATA_QC (reopen) succeeds', async () => {
     const { orderId } = await createOrder(baseOrder())
-    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.REVIEW })
+    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.DATA_QC })
     await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.EXCEPTION })
-    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.REVIEW })
+    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.DATA_QC })
     const order = await getOrder(orderId, ctx.tenant.id)
-    expect(order?.status).toBe(OrderStatus.REVIEW)
+    expect(order?.status).toBe(OrderStatus.DATA_QC)
   })
 })
 
@@ -123,9 +139,9 @@ describe('listOrders', () => {
   it('filters by status', async () => {
     const { orderId } = await createOrder(baseOrder())
     await createOrder({ ...baseOrder(), businessName: 'Second LLC' })
-    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.REVIEW })
+    await updateStatus({ orderId, tenantId: ctx.tenant.id, actorId: ctx.opsUser.id, toStatus: OrderStatus.DATA_QC })
 
-    const { items } = await listOrders(ctx.tenant.id, { status: OrderStatus.REVIEW })
+    const { items } = await listOrders(ctx.tenant.id, { status: OrderStatus.DATA_QC })
     expect(items).toHaveLength(1)
     expect(items[0].id).toBe(orderId)
   })
@@ -141,7 +157,6 @@ describe('listOrders', () => {
   })
 
   it('cursor pagination works', async () => {
-    // Create 3 orders
     for (let i = 0; i < 3; i++) {
       await createOrder({ ...baseOrder(), businessName: `LLC ${i}`, customerEmail: `c${i}-${Date.now()}@test.com` })
     }

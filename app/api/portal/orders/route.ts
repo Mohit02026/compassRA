@@ -25,9 +25,19 @@ export async function GET() {
 
   const orders = await prisma.order.findMany({
     where: { customerId: customer.id, tenantId: session.user.tenantId, deletedAt: null },
-    include: { documents: { where: { deletedAt: null } } },
+    include: {
+      documents: { where: { deletedAt: null } },
+      orderData: { where: { key: 'businessName' } },
+    },
     orderBy: { createdAt: 'desc' },
   })
 
-  return NextResponse.json({ data: orders })
+  // Flatten businessName out of orderData for easy consumption
+  const data = orders.map((o) => ({
+    ...o,
+    businessName: o.orderData.find((d) => d.key === 'businessName')?.value ?? null,
+    orderData: undefined,
+  }))
+
+  return NextResponse.json({ data })
 }

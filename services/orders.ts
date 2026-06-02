@@ -6,13 +6,14 @@ import { generateFilingSheet } from '@/services/pdf'
 import { sendWelcome, sendOrderFiled, sendOrderCompleted, sendException } from '@/services/email'
 import { createCustomerWithUser } from '@/services/customers'
 
-// Legal status transitions — EXCEPTION can come from REVIEW or FILED, reopens to REVIEW
+// Legal status transitions — driven by GHL webhook stage changes
 const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  INTAKE: [OrderStatus.REVIEW],
-  REVIEW: [OrderStatus.FILED, OrderStatus.EXCEPTION],
-  FILED: [OrderStatus.COMPLETED, OrderStatus.EXCEPTION],
-  COMPLETED: [],
-  EXCEPTION: [OrderStatus.REVIEW],
+  INTAKE:        [OrderStatus.DATA_QC],
+  DATA_QC:       [OrderStatus.READY_TO_FILE, OrderStatus.EXCEPTION],
+  READY_TO_FILE: [OrderStatus.FILED, OrderStatus.EXCEPTION],
+  FILED:         [OrderStatus.COMPLETED, OrderStatus.EXCEPTION],
+  COMPLETED:     [],
+  EXCEPTION:     [OrderStatus.DATA_QC],
 }
 
 export function isLegalTransition(from: OrderStatus, to: OrderStatus): boolean {
@@ -80,6 +81,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
 
   // 3. Build OrderData key-value pairs — encrypt sensitive keys
   const orderDataFields: Record<string, string> = {
+    businessName: input.businessName,
     principalAddress: input.principalAddress ?? '',
     mailingAddress: input.mailingAddress ?? '',
     organizerName: input.organizerName ?? '',
@@ -252,8 +254,39 @@ export async function updateStatus(input: UpdateStatusInput): Promise<void> {
     void sendOrderFiled({ to: email, customerName, orderId: order.id })
   } else if (input.toStatus === OrderStatus.COMPLETED) {
     void sendOrderCompleted({ to: email, customerName, orderId: order.id })
+    // Perpetual annual report re-scheduling — recurring revenue engine
+    if (order.serviceType === ServiceType.ANNUAL_REPORT && order.dueDate) {
+      void scheduleNextYearReminders(order.id, order.customerId, order.dueDate, input.tenantId)
+    }
   } else if (input.toStatus === OrderStatus.EXCEPTION) {
     void sendException({ to: email, customerName, orderId: order.id, note: input.note })
+  }
+}
+
+// On annual report completion, create next year's reminder rows
+async function scheduleNextYearReminders(
+  orderId: string,
+  customerId: string,
+  currentDueDate: Date,
+  tenantId: string
+): Promise<void> {
+  try {
+    await setPrismaContext(tenantId)
+    const nextDueDate = new Date(currentDueDate)
+    nextDueDate.setFullYear(nextDueDate.getFullYear() + 1)
+
+    const INTERVALS = [90, 60, 30, 14, 7, 3]
+    await prisma.reminder.createMany({
+      data: INTERVALS.map((days) => ({
+        orderId,
+        customerId,
+        type: `${days}day`,
+        sendAt: new Date(nextDueDate.getTime() - days * 86400000),
+        sentAt: null,
+      })),
+    })
+  } catch (err) {
+    console.error('[Reminders] Failed to schedule next year reminders:', err)
   }
 }
 
