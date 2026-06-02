@@ -60,7 +60,7 @@ export default function LandingPage() {
           track every step online.
         </p>
         <Link
-          href="/login"
+          href="/name-search"
           className="inline-block px-8 py-3.5 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90"
           style={{
             backgroundColor: 'var(--color-blue)',
@@ -84,6 +84,7 @@ export default function LandingPage() {
             title="Annual Report"
             description="Keep your LLC active on Sunbiz. Filed by May 1 every year — $125 service fee + $138.75 state fee. One flat total, no surprises."
             cta="File annual report"
+            href="/annual-report"
           />
 
           {/* LLC Formation */}
@@ -96,6 +97,7 @@ export default function LandingPage() {
             title="LLC Formation"
             description="Form your Florida LLC the right way. We handle the Articles of Organization, registered agent designation, and EIN if needed."
             cta="Form an LLC"
+            href="/llc"
           />
 
           {/* RA Takeover */}
@@ -108,6 +110,7 @@ export default function LandingPage() {
             title="RA Takeover"
             description="Already have an LLC? Switch your registered agent to Compass. We'll handle the paperwork and verify the update on Sunbiz."
             cta="Switch agent"
+            href="/login"
           />
         </div>
       </section>
@@ -137,6 +140,7 @@ function ServiceCard({
   title,
   description,
   cta,
+  href,
 }: {
   iconBg: string
   iconColor: string
@@ -146,6 +150,7 @@ function ServiceCard({
   title: string
   description: string
   cta: string
+  href: string
 }) {
   return (
     <div
@@ -181,7 +186,7 @@ function ServiceCard({
         {description}
       </p>
       <Link
-        href="/login"
+        href={href}
         className="mt-4 flex items-center gap-1 text-sm font-medium hover:underline"
         style={{ color: 'var(--color-blue)' }}
       >

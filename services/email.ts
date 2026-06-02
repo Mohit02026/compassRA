@@ -5,6 +5,7 @@ import OrderFiledEmail from '@/emails/OrderFiledEmail'
 import OrderCompletedEmail from '@/emails/OrderCompletedEmail'
 import ExceptionEmail from '@/emails/ExceptionEmail'
 import AnnualReportReminderEmail from '@/emails/AnnualReportReminderEmail'
+import LegalNoticeEmail from '@/emails/LegalNoticeEmail'
 
 const portalUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
@@ -138,6 +139,35 @@ export async function sendAnnualReportReminder(payload: ReminderEmailPayload): P
     from: FROM,
     to: resolveRecipient(payload.to),
     subject,
+    html,
+  })
+}
+
+interface LegalNoticePayload {
+  to: string
+  customerName: string
+  businessName: string
+}
+
+export async function sendLegalNotice(payload: LegalNoticePayload): Promise<void> {
+  if (isMock) {
+    console.log(`[Email mock] LegalNoticeEmail → ${payload.to}`)
+    console.log(`  business: ${payload.businessName}`)
+    return
+  }
+
+  const html = await render(
+    LegalNoticeEmail({
+      customerName: payload.customerName,
+      businessName: payload.businessName,
+      portalUrl: `${portalUrl}/portal/notices`,
+    })
+  )
+
+  await getResend().emails.send({
+    from: FROM,
+    to: resolveRecipient(payload.to),
+    subject: `You have a new legal notice — ${payload.businessName}`,
     html,
   })
 }

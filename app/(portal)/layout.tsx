@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { Building2, LayoutDashboard, FolderOpen, FileText, Settings } from 'lucide-react'
+import { Building2, LayoutDashboard, FileText, Settings, Calendar, Bell } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function PortalLayout({
@@ -42,6 +42,9 @@ export default async function PortalLayout({
         <nav className="flex items-center gap-1 ml-4">
           {[
             { href: '/portal/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+            { href: '/portal/company', icon: Building2, label: 'Company' },
+            { href: '/portal/calendar', icon: Calendar, label: 'Calendar' },
+            { href: '/portal/notices', icon: Bell, label: 'Notices' },
             { href: '/portal/documents', icon: FileText, label: 'Documents' },
             { href: '/portal/account', icon: Settings, label: 'Account' },
           ].map(({ href, icon: Icon, label }) => (
