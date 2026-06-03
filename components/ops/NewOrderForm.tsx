@@ -229,6 +229,7 @@ export default function NewOrderForm() {
           <div className="grid grid-cols-2 gap-4">
             <Field label="Full Name" required>
               <Input
+                name="customerName"
                 value={form.customerName}
                 onChange={(e) => set('customerName', e.target.value)}
                 required
@@ -238,6 +239,7 @@ export default function NewOrderForm() {
             <Field label="Email" required>
               <Input
                 type="email"
+                name="customerEmail"
                 value={form.customerEmail}
                 onChange={(e) => set('customerEmail', e.target.value)}
                 required
@@ -260,6 +262,7 @@ export default function NewOrderForm() {
           <div className="grid grid-cols-2 gap-4">
             <Field label="Business Name" required>
               <Input
+                name="businessName"
                 value={form.businessName}
                 onChange={(e) => set('businessName', e.target.value)}
                 required
@@ -268,6 +271,7 @@ export default function NewOrderForm() {
             </Field>
             <Field label="Service Type" required>
               <Select
+                name="serviceType"
                 value={form.serviceType}
                 onChange={(e) => set('serviceType', e.target.value)}
                 required

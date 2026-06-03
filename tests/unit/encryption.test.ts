@@ -30,10 +30,12 @@ describe('encryption', () => {
     expect(() => decrypt(tampered)).toThrow()
   })
 
-  it('SENSITIVE_KEYS contains ssn, ein, dob', () => {
+  it('SENSITIVE_KEYS contains ssn, ein, dob, itin', () => {
     expect(SENSITIVE_KEYS.has('ssn')).toBe(true)
     expect(SENSITIVE_KEYS.has('ein')).toBe(true)
     expect(SENSITIVE_KEYS.has('dob')).toBe(true)
+    expect(SENSITIVE_KEYS.has('itin')).toBe(true)
     expect(SENSITIVE_KEYS.has('businessName')).toBe(false)
+    expect(SENSITIVE_KEYS.has('managementType')).toBe(false)
   })
 })

@@ -39,7 +39,11 @@ function verifySignature(rawBody: string, signature: string | null): boolean {
     .update(rawBody)
     .digest('hex')
 
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+  // timingSafeEqual requires equal-length buffers — length mismatch means invalid sig
+  const sigBuf = Buffer.from(signature)
+  const expBuf = Buffer.from(expected)
+  if (sigBuf.length !== expBuf.length) return false
+  return crypto.timingSafeEqual(sigBuf, expBuf)
 }
 
 interface GhlWebhookPayload {

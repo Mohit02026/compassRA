@@ -27,6 +27,13 @@ vi.mock('@/lib/r2', () => ({
 // Mock pdf service — uses JSX (@react-pdf/renderer), Vite can't parse without React plugin.
 vi.mock('@/services/pdf', () => ({
   generateFilingSheet: vi.fn().mockResolvedValue(Buffer.from('mock-pdf')),
+  generateArticlesOfOrg: vi.fn().mockResolvedValue(Buffer.from('mock-articles-pdf')),
+  generateSS4: vi.fn().mockResolvedValue(Buffer.from('mock-ss4-pdf')),
+}))
+
+// Mock ss4 service — JSX, same reason
+vi.mock('@/services/ss4', () => ({
+  generateSS4: vi.fn().mockResolvedValue(Buffer.from('mock-ss4-pdf')),
 }))
 
 // Mock email service — all sends are void background tasks + JSX templates.
@@ -36,4 +43,6 @@ vi.mock('@/services/email', () => ({
   sendOrderCompleted: vi.fn().mockResolvedValue(undefined),
   sendException: vi.fn().mockResolvedValue(undefined),
   sendAnnualReportReminder: vi.fn().mockResolvedValue(undefined),
+  sendEinCompleted: vi.fn().mockResolvedValue(undefined),
+  sendLegalNotice: vi.fn().mockResolvedValue(undefined),
 }))

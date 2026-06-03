@@ -9,7 +9,8 @@ export async function seedTestTenant(slug = 'test-tenant') {
   const opsHash = await bcrypt.hash('password123', 4)
   const customerHash = await bcrypt.hash('password123', 4)
 
-  // Single transaction — all rows visible atomically, same connection, no FK races
+  // Single transaction — all rows visible atomically, same connection, no FK races.
+  // Timeout bumped to 30s to accommodate slow CI and test suites with many beforeEach calls.
   return db.$transaction(async (tx) => {
     const tenant = await tx.tenant.create({
       data: { name: 'Test Tenant', slug: `${slug}-${ts}` },
@@ -45,7 +46,7 @@ export async function seedTestTenant(slug = 'test-tenant') {
     })
 
     return { tenant, opsUser, customerUser, customer }
-  })
+  }, { timeout: 30000 })
 }
 
 export async function cleanDb() {

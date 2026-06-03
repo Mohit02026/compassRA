@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { hash } from 'bcryptjs'
+import { hash, compare } from 'bcryptjs'
 import { z } from 'zod'
 
+// currentPassword is optional — not required for mustChangePwd forced-change flow
 const schema = z.object({
   password: z.string().min(8),
+  currentPassword: z.string().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -21,6 +23,22 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: { code: 400, message: 'Invalid input' } }, { status: 400 })
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } })
+  if (!user) {
+    return NextResponse.json({ error: { code: 404, message: 'User not found' } }, { status: 404 })
+  }
+
+  // If not a forced change, require current password verification
+  if (!user.mustChangePwd && parsed.data.currentPassword) {
+    const valid = await compare(parsed.data.currentPassword, user.passwordHash)
+    if (!valid) {
+      return NextResponse.json(
+        { error: { code: 400, message: 'Current password is incorrect' } },
+        { status: 400 }
+      )
+    }
   }
 
   const passwordHash = await hash(parsed.data.password, 12)

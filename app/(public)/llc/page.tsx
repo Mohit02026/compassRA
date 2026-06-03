@@ -256,6 +256,7 @@ function LLCFormationForm() {
                 <div className="flex gap-2">
                   <input
                     type="text"
+                    name="businessName"
                     value={form.businessName}
                     onChange={(e) => set('businessName', e.target.value)}
                     placeholder="Sunshine Ventures LLC"

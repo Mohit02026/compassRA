@@ -14,3 +14,9 @@ build-plan.md
 handoff.md
 session.md
 issues.md
+
+# E2E
+playwright-report/
+test-results/
+.env.e2e
+.env.development.local

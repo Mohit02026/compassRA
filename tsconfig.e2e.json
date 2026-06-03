@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    "outDir": ".e2e-dist",
+    "noEmit": false
+  },
+  "include": [
+    "tests/e2e/**/*.ts",
+    "playwright.config.ts"
+  ],
+  "exclude": ["node_modules"]
+}
