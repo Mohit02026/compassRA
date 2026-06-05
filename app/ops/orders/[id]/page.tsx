@@ -248,9 +248,34 @@ export default function OpsOrderDetailPage({ params }: Props) {
         )}
         {status === 'FILED' && (
           <>
+            {/* Require filing receipt or certificate before completing */}
+            {(() => {
+              const hasRequiredDoc = order.documents?.some((d: any) =>
+                d.type === 'FILING_RECEIPT' || d.type === 'CERTIFICATE'
+              )
+              return (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    disabled={transitioning || !hasRequiredDoc}
+                    onClick={() => transition(OrderStatus.COMPLETED)}
+                    title={!hasRequiredDoc ? 'Upload a filing receipt or certificate first' : undefined}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: 'var(--color-navy)' }}
+                  >
+                    <CheckCircle size={14} /> Mark Completed
+                  </button>
+                  {!hasRequiredDoc && (
+                    <span className="text-xs flex items-center gap-1" style={{ color: 'var(--color-muted)' }}>
+                      <AlertTriangle size={12} className="text-amber-500" />
+                      Upload a filing receipt or certificate to enable
+                    </span>
+                  )}
+                </div>
+              )
+            })()}
             <label
               className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white cursor-pointer"
-              style={{ backgroundColor: 'var(--color-navy)' }}
+              style={{ backgroundColor: 'var(--color-navy-light)' }}
             >
               <Upload size={14} />
               {uploading ? 'Uploading…' : 'Upload Certificate'}

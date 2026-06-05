@@ -173,7 +173,7 @@ function PaymentForm({ total, clientName }: { total: number; clientName: string 
       elements,
       confirmParams: {
         // Stripe will redirect here on success
-        return_url: `${window.location.origin}/login?welcome=1`,
+        return_url: `${window.location.origin}/checkout/success`,
         payment_method_data: {
           billing_details: { name: clientName },
         },

@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, GetObjectCommand, NoSuchKey } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 // R2_ENDPOINT overrides the default Cloudflare endpoint.
@@ -42,6 +42,27 @@ export async function uploadToR2(
       ContentType: contentType,
     })
   )
+}
+
+// Downloads a file from R2 and returns it as a Buffer.
+export async function downloadFromR2(key: string): Promise<Buffer> {
+  if (isMock) {
+    console.log(`[R2 mock] download skipped — key: ${key}`)
+    return Buffer.alloc(0)
+  }
+
+  const client = getClient()
+  try {
+    const response = await client.send(
+      new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key })
+    )
+    if (!response.Body) throw new Error(`Empty R2 body for key: ${key}`)
+    const bytes = await response.Body.transformToByteArray()
+    return Buffer.from(bytes)
+  } catch (err) {
+    if (err instanceof NoSuchKey) throw new Error(`R2 key not found: ${key}`)
+    throw err
+  }
 }
 
 // Returns a pre-signed URL valid for 1 hour.

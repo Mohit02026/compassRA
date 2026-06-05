@@ -43,12 +43,71 @@ export interface GhlContact {
 }
 
 export async function createOrUpdateContact(input: GhlContactInput): Promise<GhlContact> {
-  // GHL upserts on email by default when using the contacts endpoint
   const data = await ghlFetch('/contacts/', {
     method: 'POST',
     body: JSON.stringify(input),
   }) as { contact: GhlContact }
   return data.contact
+}
+
+// ── Notes ─────────────────────────────────────────────────────────────────────
+// GHL notes require a userId — set GHL_USER_ID in env once.
+// GHL → Settings → My Profile → copy the ID from the URL.
+
+export async function createContactNote(contactId: string, body: string): Promise<void> {
+  const userId = process.env.GHL_USER_ID
+  if (!userId) {
+    console.warn('[GHL] createContactNote skipped — GHL_USER_ID not set in env')
+    return
+  }
+  await ghlFetch(`/contacts/${contactId}/notes`, {
+    method: 'POST',
+    body: JSON.stringify({ userId, body }),
+  })
+}
+
+// ── Media upload ──────────────────────────────────────────────────────────────
+// Uploads a PDF to GHL's media library and returns the hosted URL.
+// The URL is permanent (no expiry) — safe to store in GHL notes/contacts.
+
+export interface GhlMediaUploadResult {
+  fileId: string
+  url: string
+  fileName: string
+}
+
+export async function uploadMediaToGHL(
+  buffer: Buffer,
+  fileName: string,
+): Promise<GhlMediaUploadResult> {
+  const locationId = process.env.GHL_LOCATION_ID ?? ''
+
+  // Use native FormData — do NOT set Content-Type header manually.
+  // fetch sets it automatically with the correct multipart boundary.
+  const form = new FormData()
+  form.append('file', new Blob([new Uint8Array(buffer)], { type: 'application/pdf' }), fileName)
+  form.append('fileName', fileName)
+
+  const res = await fetch(`${GHL_BASE}/medias/upload-file`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.GHL_API_KEY ?? ''}`,
+      Version: '2021-07-28',
+      'Location-Id': locationId,
+    },
+    body: form,
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`GHL media upload failed: ${res.status} ${text}`)
+  }
+
+  const data = await res.json() as Record<string, unknown>
+  // GHL returns the URL under different keys depending on API version — handle both
+  const url = (data.url ?? data.fileUrl ?? data.data) as string
+  const fileId = (data.fileId ?? data.id ?? '') as string
+  return { fileId, url, fileName }
 }
 
 // ── Opportunities (pipeline cards) ───────────────────────────────────────────
@@ -58,6 +117,7 @@ export interface GhlOpportunityInput {
   pipelineId: string
   pipelineStageId: string
   contactId: string
+  status: 'open' | 'won' | 'lost' | 'abandoned' // required — omitting causes 422
   monetaryValue?: number
   customFields?: Array<{ id: string; field_value: string }>
 }
@@ -103,8 +163,6 @@ export async function enrollContactInWorkflow(
 
 // ── Stage map helpers ─────────────────────────────────────────────────────────
 
-// GHL_STAGE_MAP env var: JSON mapping OrderStatus → GHL pipeline stage ID
-// e.g. {"INTAKE":"abc123","DATA_QC":"def456","READY_TO_FILE":"ghi789","FILED":"jkl012","COMPLETED":"mno345"}
 export function getStageId(orderStatus: string): string | null {
   const raw = process.env.GHL_STAGE_MAP
   if (!raw) return null

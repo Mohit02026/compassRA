@@ -3,16 +3,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, CheckCircle2, XCircle, AlertCircle, Loader2 } from 'lucide-react'
-import type { NameAvailability } from '@/services/nameSearch'
+import type { NameAvailability, SunBizMatch, NameSearchResult } from '@/services/nameSearch'
 
 export default function NameSearchPage() {
   const router = useRouter()
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{
-    available: NameAvailability
-    matches: string[]
-  } | null>(null)
+  const [result, setResult] = useState<NameSearchResult | null>(null)
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -22,16 +19,22 @@ export default function NameSearchPage() {
     try {
       const res = await fetch(`/api/name-search?name=${encodeURIComponent(name)}`)
       const json = await res.json()
-      setResult(json.data)
+      setResult(json.data as NameSearchResult)
     } finally {
       setLoading(false)
     }
   }
 
   function handleProceed() {
-    // Pass name to LLC formation via URL param
     router.push(`/llc?name=${encodeURIComponent(name)}`)
   }
+
+  const canProceed =
+    result &&
+    (result.available === 'available' ||
+      result.available === 'likely' ||
+      // taken but inactive — entity may be dissolved, still let them proceed
+      (result.available === 'taken' && isInactive(result.exactMatch?.status)))
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
@@ -62,11 +65,7 @@ export default function NameSearchPage() {
             className="flex items-center gap-2 text-white text-sm font-medium rounded-md px-5 py-2.5 transition-opacity disabled:opacity-60"
             style={{ backgroundColor: 'var(--color-navy)' }}
           >
-            {loading ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : (
-              <Search size={15} />
-            )}
+            {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
             Search
           </button>
         </form>
@@ -74,24 +73,57 @@ export default function NameSearchPage() {
 
       {result && (
         <div className="bg-white rounded-lg p-5 mb-4" style={{ border: '1px solid var(--color-border)' }}>
-          <AvailabilityBanner available={result.available} name={name} />
+          <AvailabilityBanner result={result} name={name} />
 
           {result.matches.length > 0 && (
-            <div className="mt-4">
-              <p className="text-xs font-medium mb-2" style={{ color: 'var(--color-muted)' }}>
-                Similar names on Sunbiz
+            <div className="mt-5">
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--color-muted)' }}>
+                Nearby names in the Florida registry
               </p>
-              <ul className="space-y-1">
-                {result.matches.map((match, i) => (
-                  <li key={i} className="text-sm py-1.5 px-2 rounded" style={{ backgroundColor: 'var(--color-bg)' }}>
-                    {match}
-                  </li>
-                ))}
-              </ul>
+              <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
+                      <th className="text-left px-3 py-2 text-xs font-medium" style={{ color: 'var(--color-muted)' }}>
+                        Corporate Name
+                      </th>
+                      <th className="text-left px-3 py-2 text-xs font-medium w-24" style={{ color: 'var(--color-muted)' }}>
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.matches.map((match, i) => {
+                      const isExact = result.exactMatch?.name === match.name
+                      return (
+                        <tr
+                          key={i}
+                          style={{
+                            borderTop: i > 0 ? '1px solid var(--color-border)' : undefined,
+                            backgroundColor: isExact ? 'oklch(0.97 0.02 25)' : undefined,
+                          }}
+                        >
+                          <td className="px-3 py-2 font-medium" style={{ color: isExact ? 'var(--color-exception-text)' : '#374151' }}>
+                            {match.name}
+                            {isExact && (
+                              <span className="ml-2 text-xs font-normal" style={{ color: 'var(--color-exception-text)' }}>
+                                ← exact match
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            <StatusBadge status={match.status} />
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
-          {(result.available === 'available' || result.available === 'likely') && (
+          {canProceed && (
             <div className="mt-5 flex justify-end">
               <button
                 onClick={handleProceed}
@@ -106,19 +138,21 @@ export default function NameSearchPage() {
       )}
 
       <p className="text-xs text-center" style={{ color: 'var(--color-muted)' }}>
-        Results are pulled directly from Sunbiz. Name availability is confirmed during filing.
+        Data pulled directly from the Florida Division of Corporations. Name availability is confirmed during filing.
       </p>
     </div>
   )
 }
 
-function AvailabilityBanner({
-  available,
-  name,
-}: {
-  available: NameAvailability
-  name: string
-}) {
+function isInactive(status?: string): boolean {
+  if (!status) return false
+  const s = status.toUpperCase()
+  return s.startsWith('INACT') || s === 'INACTIVE'
+}
+
+function AvailabilityBanner({ result, name }: { result: NameSearchResult; name: string }) {
+  const { available, exactMatch } = result
+
   if (available === 'available') {
     return (
       <div className="flex items-start gap-3 p-3 rounded-md bg-green-50 border border-green-200">
@@ -126,7 +160,7 @@ function AvailabilityBanner({
         <div>
           <p className="text-sm font-medium text-green-800">Looks available</p>
           <p className="text-xs text-green-700 mt-0.5">
-            No exact match found for &ldquo;{name}&rdquo; on Sunbiz.
+            No exact or similar match found for &ldquo;{name}&rdquo; on Sunbiz.
           </p>
         </div>
       </div>
@@ -134,13 +168,34 @@ function AvailabilityBanner({
   }
 
   if (available === 'taken') {
+    // Inactive exact match — name is registered but entity may be dissolved
+    if (exactMatch && isInactive(exactMatch.status)) {
+      return (
+        <div className="flex items-start gap-3 p-3 rounded-md border"
+          style={{ backgroundColor: 'var(--color-review-bg)', borderColor: 'var(--color-review-border)' }}>
+          <AlertCircle size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--color-review-text)' }} />
+          <div>
+            <p className="text-sm font-medium" style={{ color: 'var(--color-review-text)' }}>
+              Name exists but entity is inactive
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--color-review-text)' }}>
+              &ldquo;{exactMatch.name}&rdquo; is marked <strong>{exactMatch.status}</strong> on Sunbiz.
+              Dissolved names may become available after a waiting period. We confirm availability before filing.
+            </p>
+          </div>
+        </div>
+      )
+    }
+
+    // Active exact match — definitely taken
     return (
       <div className="flex items-start gap-3 p-3 rounded-md bg-red-50 border border-red-200">
         <XCircle size={18} className="text-red-600 mt-0.5 shrink-0" />
         <div>
           <p className="text-sm font-medium text-red-800">Name already taken</p>
           <p className="text-xs text-red-700 mt-0.5">
-            An exact match for &ldquo;{name}&rdquo; exists on Sunbiz. Try a different name.
+            &ldquo;{exactMatch?.name ?? name}&rdquo; is already registered
+            {exactMatch ? ` and marked ${exactMatch.status}` : ''} on Sunbiz. Try a different name.
           </p>
         </div>
       </div>
@@ -150,22 +205,20 @@ function AvailabilityBanner({
   if (available === 'likely') {
     return (
       <div className="flex items-start gap-3 p-3 rounded-md border"
-        style={{ backgroundColor: 'var(--color-review-bg)', borderColor: 'var(--color-review-border)' }}
-      >
+        style={{ backgroundColor: 'var(--color-review-bg)', borderColor: 'var(--color-review-border)' }}>
         <AlertCircle size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--color-review-text)' }} />
         <div>
           <p className="text-sm font-medium" style={{ color: 'var(--color-review-text)' }}>
             Likely available
           </p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--color-review-text)' }}>
-            Similar names exist but no exact match for &ldquo;{name}&rdquo;. We&apos;ll verify on Sunbiz when filing.
+            No exact match for &ldquo;{name}&rdquo;, but similar names exist nearby. We confirm availability before filing.
           </p>
         </div>
       </div>
     )
   }
 
-  // unknown
   return (
     <div className="flex items-start gap-3 p-3 rounded-md bg-gray-50 border border-gray-200">
       <AlertCircle size={18} className="text-gray-500 mt-0.5 shrink-0" />
@@ -176,5 +229,37 @@ function AvailabilityBanner({
         </p>
       </div>
     </div>
+  )
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const s = status.trim().toUpperCase()
+
+  if (s === 'ACTIVE') {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+        Active
+      </span>
+    )
+  }
+  if (s === 'NAME HS') {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+        Reserved
+      </span>
+    )
+  }
+  if (s.startsWith('INACT') || s === 'INACTIVE') {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
+        Inactive
+      </span>
+    )
+  }
+  // Any other status (NAME CHANGE, etc.)
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
+      {status}
+    </span>
   )
 }

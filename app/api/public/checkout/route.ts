@@ -26,6 +26,27 @@ const checkoutSchema = z.object({
   addOnOperatingAgreement: z.boolean().optional(),
   addOnCertificateOfStatus: z.boolean().optional(),
   internalNotes: z.string().optional(),
+
+  // LLC Formation extras — needed for Articles of Org PDF generation
+  managementType: z.string().optional(),
+  effectiveDate: z.string().optional(),
+  // LLC form sends {name, ownership}; normalize to {name, ownershipPct} for createOrder
+  members: z.array(z.object({ name: z.string(), ownership: z.string().optional() })).optional(),
+  organizerName: z.string().optional(),
+
+  // EIN standalone order — service fee already includes EIN price; skip add-on charge
+  einOnly: z.boolean().optional(),
+
+  // EIN-specific fields (flat — not nested) — encrypted server-side where sensitive
+  einMemberCount: z.string().optional(),
+  einResponsibleParty: z.string().optional(),
+  einTaxIdType: z.string().optional(),
+  einTaxId: z.string().optional(),
+  einBusinessPurpose: z.string().optional(),
+  einDateStarted: z.string().optional(),
+  einReasonApplying: z.string().optional(),
+  einIsUSCitizen: z.boolean().optional(),
+  einCounty: z.string().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -56,8 +77,10 @@ export async function POST(req: NextRequest) {
   }
 
   const data = parsed.data
+  // einOnly: standalone EIN order — serviceFee already covers the EIN price.
+  // Don't add the $75 add-on on top; that's for LLC Formation + EIN bundles.
   const totalAmount = data.serviceFee + data.stateFee +
-    (data.addOnEin ? 75 : 0) +
+    (data.addOnEin && !data.einOnly ? 75 : 0) +
     (data.addOnOperatingAgreement ? 50 : 0) +
     (data.addOnCertificateOfStatus ? 9 : 0)
 
@@ -78,10 +101,24 @@ export async function POST(req: NextRequest) {
       mailingAddress: data.mailingAddress,
       serviceFee: data.serviceFee,
       stateFee: data.stateFee,
-      addOnEin: data.addOnEin,
+      // einOnly drives SS-4 generation for standalone EIN orders where addOnEin is false
+      addOnEin: data.addOnEin || data.einOnly,
       addOnOperatingAgreement: data.addOnOperatingAgreement,
       addOnCertificateOfStatus: data.addOnCertificateOfStatus,
       internalNotes: data.internalNotes,
+      managementType: data.managementType,
+      effectiveDate: data.effectiveDate,
+      members: data.members?.map((m) => ({ name: m.name, ownershipPct: m.ownership ?? '' })),
+      organizerName: data.organizerName ?? data.customerName,
+      einMemberCount: data.einMemberCount,
+      einResponsibleParty: data.einResponsibleParty,
+      einTaxIdType: data.einTaxIdType,
+      einTaxId: data.einTaxId,
+      einBusinessPurpose: data.einBusinessPurpose,
+      einDateStarted: data.einDateStarted,
+      einReasonApplying: data.einReasonApplying,
+      einIsUSCitizen: data.einIsUSCitizen,
+      einCounty: data.einCounty,
     })
 
     // 2. Create Stripe PaymentIntent

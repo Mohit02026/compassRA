@@ -1,10 +1,10 @@
 import { Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer'
 import React from 'react'
 
-// Compass RA details — shown on both internal filing sheet and Articles of Org
-const RA_NAME = 'Compass Registered Agent LLC'
-const RA_ADDRESS = '8 The Green Suite 300, Dover, DE 19901'
-const RA_COUNTY = 'Kent'
+// Compass RA details — confirmed via SunBiz (Document # L25000307072)
+const RA_NAME = 'Compass Registered Agent, LLC'
+const RA_ADDRESS = '625 Court St Ste 100, Clearwater, FL 33756'
+const RA_COUNTY = 'Pinellas'
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 

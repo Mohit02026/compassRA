@@ -112,7 +112,7 @@ export default function CompanyPage() {
               Compass Registered Agent
               <br />
               <span className="font-normal text-xs" style={{ color: 'var(--color-muted)' }}>
-                8 The Green Suite 300, Dover, DE 19901
+                625 Court St Ste 100, Clearwater, FL 33756
               </span>
             </span>
           }

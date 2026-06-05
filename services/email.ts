@@ -113,6 +113,29 @@ export async function sendException(payload: ExceptionPayload): Promise<void> {
   })
 }
 
+// Internal ops alert — plain text, no customer template. Used for workflow warnings.
+interface OpsAlertPayload {
+  subject: string
+  body: string
+}
+
+export async function sendOpsAlert(payload: OpsAlertPayload): Promise<void> {
+  const opsEmail = process.env.OPS_ALERT_EMAIL ?? process.env.RESEND_FROM_EMAIL ?? ''
+  if (!opsEmail) return
+
+  if (isMock) {
+    console.warn(`[Email mock] OpsAlert → ${opsEmail}: ${payload.subject}`)
+    return
+  }
+
+  await getResend().emails.send({
+    from: FROM,
+    to: opsEmail,
+    subject: `[Compass Ops] ${payload.subject}`,
+    text: payload.body,
+  })
+}
+
 interface ReminderEmailPayload {
   to: string
   customerName: string

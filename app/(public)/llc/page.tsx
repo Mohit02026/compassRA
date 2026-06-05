@@ -4,9 +4,11 @@ import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, Plus, Trash2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 import type { NameAvailability } from '@/services/nameSearch'
+import { LLCDocumentPreview } from '@/components/public/LLCDocumentPreview'
 
-const COMPASS_RA_ADDRESS = '8 The Green Suite 300, Dover, DE 19901'
-const COMPASS_RA_NAME = 'Compass Registered Agent LLC'
+// Address confirmed via SunBiz (Document # L25000307072)
+const COMPASS_RA_ADDRESS = '625 Court St Ste 100, Clearwater, FL 33756'
+const COMPASS_RA_NAME = 'Compass Registered Agent, LLC'
 
 const SERVICE_FEE = 125
 const STATE_FEE = 138.75
@@ -234,7 +236,11 @@ function LLCFormationForm() {
   const borderStyle = { borderColor: 'var(--color-border)' }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="lg:grid lg:gap-8 lg:items-start" style={{ gridTemplateColumns: '1fr 380px' }}>
+
+      {/* ── LEFT: form ── */}
+      <div>
       <h1
         className="text-2xl font-bold mb-1"
         style={{ color: 'var(--color-navy-mid)', fontFamily: 'var(--font-jakarta)' }}
@@ -680,6 +686,14 @@ function LLCFormationForm() {
           </div>
         </>
       )}
+      </div>{/* end left column */}
+
+      {/* ── RIGHT: live document preview (desktop only) ── */}
+      <div className="hidden lg:block">
+        <LLCDocumentPreview form={form} step={step} />
+      </div>
+
+      </div>{/* end grid */}
     </div>
   )
 }

@@ -1,9 +1,15 @@
 // GHL → Compass webhook receiver.
-// GHL fires this on opportunity stage changes.
-// Compass updates its own order status — never pushes back to GHL (one-directional).
+// GHL fires this via Workflow → "Send Data to Webhook" action on opportunity stage change.
 //
-// Signature verification: GHL sends X-GHL-Signature as HMAC-SHA256 of raw body
-// keyed with GHL_WEBHOOK_SECRET. We verify before processing.
+// Actual GHL payload shape (from live test):
+//   id: opportunity ID
+//   pipleline_stage: stage name (GHL's typo — "pipleline" not "pipeline")
+//   pipeline_id: pipeline ID
+//   email, contact_id, full_name, etc.
+//
+// Stage name → OrderStatus driven by GHL_STAGE_NAME_MAP env var.
+// GHL_WEBHOOK_SECRET: optional HMAC-SHA256 signing. Leave empty to skip (dev/test).
+// Always return 200 — prevents GHL retry storms.
 
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
@@ -11,26 +17,23 @@ import { prisma } from '@/lib/prisma'
 import { updateStatus } from '@/services/orders'
 import { OrderStatus } from '@prisma/client'
 
-// GHL pipeline stage ID → Compass OrderStatus
-// Driven by GHL_STAGE_MAP env var: {"INTAKE":"stageId1","DATA_QC":"stageId2",...}
-function buildReverseStageMap(): Record<string, OrderStatus> {
-  const raw = process.env.GHL_STAGE_MAP
-  if (!raw) return {}
+// GHL_STAGE_NAME_MAP env var: {"New Order":"INTAKE","Data QC":"DATA_QC",...}
+function getStatusFromStageName(stageName: string): OrderStatus | null {
+  const raw = process.env.GHL_STAGE_NAME_MAP
+  if (!raw) return null
   try {
-    const forward = JSON.parse(raw) as Record<string, string>
-    const reverse: Record<string, OrderStatus> = {}
-    for (const [status, stageId] of Object.entries(forward)) {
-      reverse[stageId] = status as OrderStatus
-    }
-    return reverse
+    const map = JSON.parse(raw) as Record<string, string>
+    const status = map[stageName]
+    if (!status) return null
+    return status as OrderStatus
   } catch {
-    return {}
+    return null
   }
 }
 
 function verifySignature(rawBody: string, signature: string | null): boolean {
   const secret = process.env.GHL_WEBHOOK_SECRET
-  // If no secret configured, skip verification (dev/test only)
+  // No secret configured — skip verification (dev/test)
   if (!secret) return true
   if (!signature) return false
 
@@ -39,21 +42,23 @@ function verifySignature(rawBody: string, signature: string | null): boolean {
     .update(rawBody)
     .digest('hex')
 
-  // timingSafeEqual requires equal-length buffers — length mismatch means invalid sig
   const sigBuf = Buffer.from(signature)
   const expBuf = Buffer.from(expected)
   if (sigBuf.length !== expBuf.length) return false
   return crypto.timingSafeEqual(sigBuf, expBuf)
 }
 
+// Matches actual GHL "Send Data to Webhook" payload.
+// Field names are GHL's own — including the "pipleline" typo.
 interface GhlWebhookPayload {
-  type: string
-  opportunityId?: string
-  stageId?: string
-  locationId?: string
+  id?: string              // GHL opportunity ID
+  pipleline_stage?: string // stage name — GHL's typo, not ours
+  pipeline_id?: string
+  email?: string
+  full_name?: string
+  [key: string]: unknown
 }
 
-// Always return 200 to prevent GHL retry storms — log errors server-side only.
 export async function POST(req: NextRequest) {
   const rawBody = await req.text()
   const signature = req.headers.get('x-ghl-signature')
@@ -71,51 +76,58 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 200 })
   }
 
-  // Only handle opportunity stage change events
-  if (payload.type !== 'OpportunityStageUpdate' || !payload.opportunityId || !payload.stageId) {
+  const { id: opportunityId, pipleline_stage: stageName, pipeline_id: pipelineId } = payload
+
+  // Only process events from our pipeline
+  const ourPipelineId = process.env.GHL_PIPELINE_ID
+  if (ourPipelineId && pipelineId && pipelineId !== ourPipelineId) {
+    return NextResponse.json({ ok: true }, { status: 200 })
+  }
+
+  if (!opportunityId || !stageName) {
+    // Missing fields — could be a non-opportunity event, ignore silently
+    return NextResponse.json({ ok: true }, { status: 200 })
+  }
+
+  const newStatus = getStatusFromStageName(stageName)
+  if (!newStatus) {
+    // Stage name not in our map — GHL may have custom stages we don't track
+    console.log(`[GHL webhook] Unknown stage name "${stageName}" — ignoring`)
     return NextResponse.json({ ok: true }, { status: 200 })
   }
 
   try {
-    await handleStageChange(payload.opportunityId, payload.stageId)
+    await handleStageChange(opportunityId, newStatus)
   } catch (err) {
-    // Log and return 200 — don't let GHL retry
     console.error('[GHL webhook] Error handling stage change:', err)
   }
 
   return NextResponse.json({ ok: true }, { status: 200 })
 }
 
-async function handleStageChange(opportunityId: string, stageId: string): Promise<void> {
-  const reverseMap = buildReverseStageMap()
-  const newStatus = reverseMap[stageId]
-
-  if (!newStatus) {
-    // Unknown stage — GHL may have custom stages we don't track
-    console.log(`[GHL webhook] Unknown stageId ${stageId} — ignoring`)
-    return
-  }
-
-  // Find the order by GHL opportunity ID
+async function handleStageChange(
+  opportunityId: string,
+  newStatus: OrderStatus
+): Promise<void> {
   const order = await prisma.order.findFirst({
     where: { ghlOpportunityId: opportunityId, deletedAt: null },
   })
 
   if (!order) {
-    console.warn(`[GHL webhook] No order found for opportunityId ${opportunityId}`)
+    // Normal during dev — test opportunities in GHL have no matching Compass order
+    console.log(`[GHL webhook] No order found for opportunityId ${opportunityId} — skipping`)
     return
   }
 
-  // Skip if already at this status (idempotent)
+  // Idempotent — skip if already at target status
   if (order.status === newStatus) return
 
-  // Use system actor for GHL-driven transitions
   await updateStatus({
     orderId: order.id,
     tenantId: order.tenantId,
     actorId: 'system',
     toStatus: newStatus,
-    note: `Stage updated via GHL webhook (stageId: ${stageId})`,
+    note: `Stage updated via GHL webhook`,
   })
 
   console.log(`[GHL webhook] Order ${order.id}: ${order.status} → ${newStatus}`)

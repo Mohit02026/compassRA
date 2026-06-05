@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { Building2, LayoutDashboard, ClipboardList, FilePlus, FileText, Bell } from 'lucide-react'
 import Link from 'next/link'
+import { signOutOpsAction } from '@/app/actions'
 
 // Ops workbench nav is intentionally empty — Bridget uses GHL as the ops interface.
 // Routes and code are kept intact for internal use / fallback access.
@@ -67,23 +68,34 @@ export default async function OpsLayout({
 
         {/* User */}
         <div
-          className="p-4 flex items-center gap-3"
+          className="p-4 flex flex-col gap-2"
           style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}
         >
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0"
-            style={{ backgroundColor: 'var(--color-blue)' }}
-          >
-            {initials}
+          <div className="flex items-center gap-3">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0"
+              style={{ backgroundColor: 'var(--color-blue)' }}
+            >
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <p className="text-white text-sm font-medium truncate leading-tight">
+                {session.user.email}
+              </p>
+              <p className="text-xs leading-tight" style={{ color: 'oklch(0.65 0.05 245)' }}>
+                {session.user.role}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-white text-sm font-medium truncate leading-tight">
-              {session.user.email}
-            </p>
-            <p className="text-xs leading-tight" style={{ color: 'oklch(0.65 0.05 245)' }}>
-              {session.user.role}
-            </p>
-          </div>
+          <form action={signOutOpsAction}>
+            <button
+              type="submit"
+              className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-md transition-colors hover:bg-white/10 w-full"
+              style={{ color: 'rgba(255,255,255,0.6)' }}
+            >
+              Sign out
+            </button>
+          </form>
         </div>
       </aside>
 

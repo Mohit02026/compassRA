@@ -2,9 +2,28 @@ import { prisma, setPrismaContext } from '@/lib/prisma'
 import { ServiceType, Tier, OrderStatus } from '@prisma/client'
 import { encrypt, SENSITIVE_KEYS } from '@/lib/encryption'
 import { uploadToR2 } from '@/lib/r2'
-import { generateFilingSheet } from '@/services/pdf'
-import { sendWelcome, sendOrderFiled, sendOrderCompleted, sendException } from '@/services/email'
+import { generateFilingSheet, generateArticlesOfOrg } from '@/services/pdf'
+import { generateSS4 } from '@/services/ss4'
+import { sendWelcome, sendOrderFiled, sendOrderCompleted, sendException, sendOpsAlert } from '@/services/email'
 import { createCustomerWithUser } from '@/services/customers'
+import { updateOpportunityStage, getStageId } from '@/lib/ghl'
+
+// Compass RA constants — used in Articles of Org
+// Address confirmed via SunBiz (Document # L25000307072, filed 07/10/2025)
+const RA_NAME = 'Compass Registered Agent, LLC'
+const RA_STREET = '625 Court St Ste 100'
+const RA_CITY = 'Clearwater'
+const RA_COUNTY = 'Pinellas'
+const RA_STATE = 'FL'
+const RA_ZIP = '33756'
+
+// Parse a combined address string: "123 Main St, Miami, FL 33101"
+// Produced by the LLC form: `${street}, ${city}, ${state} ${zip}`
+function parseAddress(address: string): { street: string; city: string; state: string; zip: string } {
+  const m = address.match(/^(.+?),\s*(.+?),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/)
+  if (m) return { street: m[1], city: m[2], state: m[3], zip: m[4] }
+  return { street: address, city: '', state: 'FL', zip: '' }
+}
 
 // Legal status transitions — driven by GHL webhook stage changes
 const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
@@ -71,6 +90,7 @@ export interface CreateOrderInput {
   einDateStarted?: string
   einReasonApplying?: string
   einIsUSCitizen?: boolean
+  einCounty?: string         // SS-4 Line 6 — explicit county (IRS-required, can't derive from city)
 }
 
 export interface CreateOrderResult {
@@ -134,6 +154,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     if (input.einTaxId && input.einTaxIdType) {
       orderDataFields[input.einTaxIdType] = input.einTaxId
     }
+    if (input.einCounty) orderDataFields.einCounty = input.einCounty
   }
 
   // 4. Create order + orderData in a transaction
@@ -188,6 +209,43 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     mailingAddress: input.mailingAddress,
     internalNotes: input.internalNotes,
   })
+
+  // Articles of Org — LLC Formation orders only (Bridget's QC reference for SunBiz filing)
+  if (input.serviceType === ServiceType.LLC_FORMATION) {
+    void generateAndUploadArticlesOfOrg({
+      order,
+      tenantId: input.tenantId,
+      businessName: input.businessName,
+      principalAddress: input.principalAddress,
+      mailingAddress: input.mailingAddress,
+      managementType: input.managementType,
+      members: input.members,
+      effectiveDate: input.effectiveDate,
+      organizerName: input.organizerName ?? input.customerName,
+      organizerDate: new Date().toISOString().split('T')[0],
+    })
+  }
+
+  // SS-4 draft — EIN add-on orders (Bridget retrieves encrypted SSN/ITIN separately)
+  if (input.addOnEin) {
+    void generateAndUploadSS4({
+      order,
+      tenantId: input.tenantId,
+      businessName: input.businessName,
+      principalAddress: input.principalAddress,
+      mailingAddress: input.mailingAddress,
+      organizerName: input.organizerName ?? input.customerName,
+      einMemberCount: input.einMemberCount,
+      einResponsibleParty: input.einResponsibleParty,
+      einTaxIdType: input.einTaxIdType,
+      einBusinessPurpose: input.einBusinessPurpose,
+      einDateStarted: input.einDateStarted,
+      einReasonApplying: input.einReasonApplying,
+      einIsUSCitizen: input.einIsUSCitizen,
+      einCounty: input.einCounty,
+      members: input.members,
+    })
+  }
 
   // 6. Fire welcome email in background (non-blocking)
   void sendWelcome({
@@ -247,6 +305,137 @@ async function generateAndUploadFilingSheet(params: {
   }
 }
 
+async function generateAndUploadArticlesOfOrg(params: {
+  order: { id: string }
+  tenantId: string
+  businessName: string
+  principalAddress?: string
+  mailingAddress?: string
+  managementType?: string
+  members?: Array<{ name: string; ownershipPct: string }>
+  effectiveDate?: string
+  organizerName?: string
+  organizerDate: string
+}): Promise<void> {
+  try {
+    const principal = parseAddress(params.principalAddress ?? '')
+    const mailing = params.mailingAddress ? parseAddress(params.mailingAddress) : null
+    const mgmt = params.managementType === 'manager-managed' ? 'manager-managed' : 'member-managed'
+    const memberTitle = mgmt === 'manager-managed' ? 'Manager' : 'Member'
+    const memberList =
+      params.members && params.members.length > 0
+        ? params.members.map((m) => ({
+            name: m.name,
+            title: memberTitle,
+            address: params.principalAddress ?? '',
+            ownershipPct: m.ownershipPct,
+          }))
+        : [{ name: params.organizerName ?? '—', title: memberTitle, address: params.principalAddress ?? '', ownershipPct: '100' }]
+
+    const buffer = await generateArticlesOfOrg({
+      orderId: params.order.id,
+      generatedAt: params.organizerDate,
+      llcName: params.businessName,
+      principalStreet: principal.street,
+      principalCity: principal.city,
+      principalState: principal.state || 'FL',
+      principalZip: principal.zip,
+      mailingStreet: mailing?.street,
+      mailingCity: mailing?.city,
+      mailingState: mailing?.state,
+      mailingZip: mailing?.zip,
+      raName: RA_NAME,
+      raStreet: RA_STREET,
+      raCity: RA_CITY,
+      raCounty: RA_COUNTY,
+      raState: RA_STATE,
+      raZip: RA_ZIP,
+      managementType: mgmt,
+      members: memberList,
+      effectiveDate: params.effectiveDate,
+      organizerName: params.organizerName ?? '—',
+      organizerDate: params.organizerDate,
+    })
+
+    const r2Key = `${params.tenantId}/orders/${params.order.id}/articles-of-org.pdf`
+    await uploadToR2(r2Key, buffer, 'application/pdf')
+
+    await prisma.document.create({
+      data: {
+        orderId: params.order.id,
+        tenantId: params.tenantId,
+        type: 'ARTICLES_OF_ORG',
+        r2Key,
+        filename: 'articles-of-org.pdf',
+      },
+    })
+  } catch (err) {
+    console.error('[PDF] Failed to generate/upload articles of org:', err)
+  }
+}
+
+async function generateAndUploadSS4(params: {
+  order: { id: string }
+  tenantId: string
+  businessName: string
+  principalAddress?: string
+  mailingAddress?: string
+  organizerName?: string
+  einMemberCount?: string
+  einResponsibleParty?: string
+  einTaxIdType?: string
+  einBusinessPurpose?: string
+  einDateStarted?: string
+  einReasonApplying?: string
+  einIsUSCitizen?: boolean
+  einCounty?: string
+  members?: Array<{ name: string; ownershipPct: string }>
+}): Promise<void> {
+  try {
+    const addr = parseAddress(params.mailingAddress ?? params.principalAddress ?? '')
+    const cityStateZip = [addr.city, addr.state, addr.zip].filter(Boolean).join(', ')
+    const memberCount =
+      params.einMemberCount ?? (params.members ? String(params.members.length) : '1')
+
+    // Use explicitly provided county if available; fall back to city as proxy.
+    const county = params.einCounty ?? addr.city ?? '—'
+
+    const buffer = await generateSS4({
+      orderId: params.order.id,
+      generatedAt: new Date().toISOString().split('T')[0],
+      legalName: params.businessName,
+      mailingStreet: addr.street || '—',
+      mailingCityStateZip: cityStateZip || '—',
+      county,
+      state: addr.state || 'FL',
+      responsiblePartyName: params.einResponsibleParty ?? params.organizerName ?? '—',
+      taxIdType: params.einTaxIdType === 'itin' ? 'itin' : 'ssn',
+      memberCount,
+      isForeignLLC: !(params.einIsUSCitizen ?? true),
+      entityType: 'Limited Liability Company (LLC)',
+      reasonApplying: params.einReasonApplying ?? 'Started new business',
+      dateStarted: params.einDateStarted ?? new Date().toISOString().split('T')[0],
+      closingMonth: 'December',
+      businessPurpose: params.einBusinessPurpose ?? '—',
+    })
+
+    const r2Key = `${params.tenantId}/orders/${params.order.id}/ss4-draft.pdf`
+    await uploadToR2(r2Key, buffer, 'application/pdf')
+
+    await prisma.document.create({
+      data: {
+        orderId: params.order.id,
+        tenantId: params.tenantId,
+        type: 'SS4_DRAFT',
+        r2Key,
+        filename: 'ss4-draft.pdf',
+      },
+    })
+  } catch (err) {
+    console.error('[PDF] Failed to generate/upload SS-4 draft:', err)
+  }
+}
+
 export interface UpdateStatusInput {
   orderId: string
   tenantId: string
@@ -290,6 +479,18 @@ export async function updateStatus(input: UpdateStatusInput): Promise<void> {
     })
   })
 
+  // Sync to GHL when the transition originated from Compass (not the GHL webhook itself).
+  // actorId === 'system' means GHL triggered this — skip to avoid echo loop.
+  // Non-blocking: GHL sync failure never fails the Compass update.
+  if (input.actorId !== 'system' && order.ghlOpportunityId) {
+    const stageId = getStageId(input.toStatus)
+    if (stageId) {
+      void updateOpportunityStage(order.ghlOpportunityId, stageId).catch((err) =>
+        console.error('[GHL sync] updateOpportunityStage failed (non-fatal):', err)
+      )
+    }
+  }
+
   // Fire email async — each status has its own template
   const email = order.customer.user.email
   const customerName = order.customer.name
@@ -297,6 +498,32 @@ export async function updateStatus(input: UpdateStatusInput): Promise<void> {
   if (input.toStatus === OrderStatus.FILED) {
     void sendOrderFiled({ to: email, customerName, orderId: order.id })
   } else if (input.toStatus === OrderStatus.COMPLETED) {
+    // Verify required docs exist before notifying customer.
+    // Don't block (avoids GHL desync) — alert ops and continue.
+    const requiredDoc = await prisma.document.findFirst({
+      where: {
+        orderId: input.orderId,
+        type: { in: ['FILING_RECEIPT', 'CERTIFICATE'] },
+        deletedAt: null,
+      },
+    })
+    if (!requiredDoc) {
+      console.warn(`[updateStatus] Order ${input.orderId} completed without filing receipt or certificate`)
+      void sendOpsAlert({
+        subject: `Missing docs — order ${input.orderId} marked Completed`,
+        body: `Order ${input.orderId} (${order.serviceType}) for ${order.customer.name} was marked Completed but has no filing receipt or certificate uploaded.\n\nPlease upload the required documents in the ops portal:\n${process.env.NEXT_PUBLIC_APP_URL}/ops/orders/${input.orderId}\n\nSource: actorId=${input.actorId}`,
+      })
+      await prisma.auditLog.create({
+        data: {
+          tenantId: input.tenantId,
+          actorId: 'system',
+          entityType: 'Order',
+          entityId: input.orderId,
+          action: 'WARN_MISSING_DOCS',
+          meta: { message: 'Completed without filing receipt or certificate', source: input.actorId },
+        },
+      })
+    }
     void sendOrderCompleted({ to: email, customerName, orderId: order.id })
     // Perpetual annual report re-scheduling — recurring revenue engine
     if (order.serviceType === ServiceType.ANNUAL_REPORT && order.dueDate) {

@@ -100,6 +100,7 @@ export default function OpsOrderDetailPage({ params }: Props) {
   const [note, setNote] = useState('')
   const [showNote, setShowNote] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadType, setUploadType] = useState<DocumentType>('FILING_RECEIPT')
   const [activeTab, setActiveTab] = useState<'documents' | 'notes'>('documents')
 
   const fetchOrder = useCallback(async () => {
@@ -124,16 +125,17 @@ export default function OpsOrderDetailPage({ params }: Props) {
     setTransitioning(false)
   }
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>, typeOverride?: DocumentType) {
     const file = e.target.files?.[0]
     if (!file) return
-    const typeStr = (e.target.dataset.doctype ?? '') as DocumentType
+    const type = typeOverride ?? uploadType
     setUploading(true)
     const fd = new FormData()
     fd.append('file', file)
     fd.append('orderId', params.id)
-    fd.append('type', typeStr)
+    fd.append('type', type)
     await fetch('/api/documents', { method: 'POST', body: fd })
+    e.target.value = ''  // reset so same file can be re-uploaded if needed
     await fetchOrder()
     setUploading(false)
   }
@@ -251,6 +253,7 @@ export default function OpsOrderDetailPage({ params }: Props) {
             <label
               className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white cursor-pointer"
               style={{ backgroundColor: 'var(--color-navy)' }}
+              title="Uploading the certificate auto-completes this order"
             >
               <Upload size={14} />
               {uploading ? 'Uploading…' : 'Upload Certificate'}
@@ -258,8 +261,7 @@ export default function OpsOrderDetailPage({ params }: Props) {
                 type="file"
                 accept=".pdf"
                 className="hidden"
-                data-doctype="CERTIFICATE"
-                onChange={handleUpload}
+                onChange={(e) => handleUpload(e, 'CERTIFICATE')}
               />
             </label>
             <button
@@ -283,22 +285,37 @@ export default function OpsOrderDetailPage({ params }: Props) {
           </button>
         )}
 
-        {/* Generic upload for any doc type */}
+        {/* Upload any document type — Bridget selects type then picks file */}
         {status !== 'COMPLETED' && (
-          <label
-            className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium border cursor-pointer"
-            style={{ borderColor: 'var(--color-border)' }}
-          >
-            <Upload size={14} />
-            {uploading ? 'Uploading…' : 'Upload Document'}
-            <input
-              type="file"
-              accept=".pdf"
-              className="hidden"
-              data-doctype="FILING_RECEIPT"
-              onChange={handleUpload}
-            />
-          </label>
+          <div className="flex items-center gap-1.5">
+            <select
+              value={uploadType}
+              onChange={(e) => setUploadType(e.target.value as DocumentType)}
+              className="text-sm border rounded-md px-2 py-2 outline-none"
+              style={{ borderColor: 'var(--color-border)' }}
+            >
+              <option value="FILING_RECEIPT">Filing Receipt</option>
+              <option value="ARTICLES_OF_ORG">Articles of Organization</option>
+              <option value="EIN_CONFIRMATION">EIN Confirmation</option>
+              <option value="OPERATING_AGREEMENT">Operating Agreement</option>
+              <option value="CERTIFICATE">Certificate of Status</option>
+              <option value="PAYMENT_INVOICE">Payment Invoice</option>
+              <option value="LEGAL_NOTICE">Legal Notice</option>
+            </select>
+            <label
+              className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium border cursor-pointer whitespace-nowrap"
+              style={{ borderColor: 'var(--color-border)' }}
+            >
+              <Upload size={14} />
+              {uploading ? 'Uploading…' : 'Upload'}
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="hidden"
+                onChange={handleUpload}
+              />
+            </label>
+          </div>
         )}
       </div>
 
