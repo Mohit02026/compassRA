@@ -50,13 +50,16 @@ const checkoutSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-  const tenantId = process.env.COMPASS_TENANT_ID
-  if (!tenantId) {
+  // Resolve tenant from DB — no COMPASS_TENANT_ID env var required.
+  // Seed guarantees a tenant with slug 'compass' exists before first request.
+  const tenant = await prisma.tenant.findUnique({ where: { slug: 'compass' } })
+  if (!tenant) {
     return NextResponse.json(
-      { error: { code: 500, message: 'Server misconfiguration' } },
+      { error: { code: 500, message: 'Server misconfiguration — run pnpm prisma db seed' } },
       { status: 500 }
     )
   }
+  const tenantId = tenant.id
 
   let body: unknown
   try {
