@@ -53,6 +53,7 @@ const createOrderSchema = z.object({
   einDateStarted: z.string().optional(),
   einReasonApplying: z.string().optional(),
   einIsUSCitizen: z.boolean().optional(),
+  einCounty: z.string().optional(),
 })
 
 export async function POST(req: NextRequest) {

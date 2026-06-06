@@ -1,2 +1,8 @@
 allowBuilds:
-  msw: set this to true or false
+  msw: true
+
+packageExtensions:
+  "next@*":
+    peerDependenciesMeta:
+      "@playwright/test":
+        optional: true

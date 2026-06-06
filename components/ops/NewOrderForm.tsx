@@ -6,8 +6,8 @@ import { ChevronLeft, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { EinFieldset, type EinFields } from '@/components/ops/EinFieldset'
 
-const RA_NAME = 'Compass Registered Agent LLC'
-const RA_ADDRESS = '123 Business Ave, Tallahassee, FL 32301'
+const RA_NAME = 'Compass Registered Agent, LLC'
+const RA_ADDRESS = '625 Court St Ste 100, Clearwater, FL 33756'
 
 const SERVICE_TYPES = [
   { value: 'ANNUAL_REPORT', label: 'Annual Report' },
@@ -136,6 +136,7 @@ export default function NewOrderForm() {
     einDateStarted: '',
     einReasonApplying: '',
     einIsUSCitizen: true,
+    einCounty: '',
   })
 
   function addMember() {

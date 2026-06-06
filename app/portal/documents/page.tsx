@@ -4,17 +4,16 @@ import { useEffect, useState } from 'react'
 import { FileText, Download, Lock } from 'lucide-react'
 import { OrderStatus, DocumentType } from '@prisma/client'
 
-// Internal ops docs — never shown to customers
 const OPS_INTERNAL_TYPES: DocumentType[] = ['FILING_SHEET', 'SS4_DRAFT'] as DocumentType[]
 
 const DOC_TYPE_LABELS: Partial<Record<DocumentType, string>> = {
-  ARTICLES_OF_ORG: 'Articles of Organization',
-  OPERATING_AGREEMENT: 'Operating Agreement',
-  EIN_CONFIRMATION: 'EIN Confirmation',
-  FILING_RECEIPT: 'Filing Receipt',
-  CERTIFICATE: 'Certificate of Status',
-  PAYMENT_INVOICE: 'Payment Invoice',
-  LEGAL_NOTICE: 'Legal Notice',
+  ARTICLES_OF_ORG:    'Articles of Organization',
+  OPERATING_AGREEMENT:'Operating Agreement',
+  EIN_CONFIRMATION:   'EIN Confirmation',
+  FILING_RECEIPT:     'Filing Receipt',
+  CERTIFICATE:        'Certificate of Status',
+  PAYMENT_INVOICE:    'Payment Invoice',
+  LEGAL_NOTICE:       'Legal Notice',
 }
 
 interface DocItem {
@@ -22,24 +21,24 @@ interface DocItem {
   type: DocumentType
   filename: string
   createdAt: string
-  order: {
-    id: string
-    status: OrderStatus
-    serviceType: string
-    state: string
-  }
+  order: { id: string; status: OrderStatus; serviceType: string; state: string }
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
-
 function formatService(s: string) {
   return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+const card: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.85)',
+  backdropFilter: 'blur(14px)',
+  WebkitBackdropFilter: 'blur(14px)',
+  borderRadius: 16,
+  border: '1px solid rgba(100,150,230,0.22)',
+  overflow: 'hidden',
+  boxShadow: '0 2px 12px rgba(14,42,120,0.07)',
 }
 
 export default function PortalDocumentsPage() {
@@ -47,7 +46,6 @@ export default function PortalDocumentsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Build doc list from portal orders endpoint
     void fetch('/api/portal/orders')
       .then((r) => r.json())
       .then((j) => {
@@ -55,10 +53,7 @@ export default function PortalDocumentsPage() {
         const allDocs: DocItem[] = orders.flatMap((o: any) =>
           (o.documents ?? [])
             .filter((d: any) => !OPS_INTERNAL_TYPES.includes(d.type))
-            .map((d: any) => ({
-              ...d,
-              order: { id: o.id, status: o.status, serviceType: o.serviceType, state: o.state },
-            }))
+            .map((d: any) => ({ ...d, order: { id: o.id, status: o.status, serviceType: o.serviceType, state: o.state } }))
         )
         setDocs(allDocs)
         setLoading(false)
@@ -68,81 +63,76 @@ export default function PortalDocumentsPage() {
   async function download(docId: string) {
     const res = await fetch(`/api/documents/${docId}/url`)
     const json = await res.json()
-    if (json.data?.url) {
-      window.open(json.data.url, '_blank')
-    } else {
-      alert(json.error?.message ?? 'Unable to download')
-    }
+    if (json.data?.url) window.open(json.data.url, '_blank')
+    else alert(json.error?.message ?? 'Unable to download')
   }
 
   const availableDocs = docs.filter((d) => d.order.status === OrderStatus.COMPLETED)
-  const lockedDocs = docs.filter((d) => d.order.status !== OrderStatus.COMPLETED)
+  const lockedDocs    = docs.filter((d) => d.order.status !== OrderStatus.COMPLETED)
 
   return (
     <div>
-      <div className="mb-6">
-        <h1
-          className="text-2xl font-bold"
-          style={{ fontFamily: 'var(--font-jakarta)', color: 'var(--color-navy-mid)' }}
-        >
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 700, fontSize: 24, color: 'oklch(0.20 0.08 245)', marginBottom: 4 }}>
           Documents
         </h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--color-muted)' }}>
+        <p style={{ fontSize: 14, color: 'oklch(0.42 0.07 245)' }}>
           Download your filing documents once your order is completed.
         </p>
       </div>
 
-      {loading && <p className="text-sm text-gray-400">Loading…</p>}
+      {loading && <p style={{ fontSize: 14, color: 'oklch(0.50 0.06 245)' }}>Loading…</p>}
 
       {!loading && docs.length === 0 && (
-        <div className="flex flex-col items-center py-20">
-          <FileText className="text-gray-300" size={40} />
-          <p className="text-sm font-medium text-gray-500 mt-3">No documents yet</p>
-          <p className="text-xs text-gray-400 mt-1">
+        <div style={{ ...card, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 32px', textAlign: 'center' }}>
+          <FileText size={36} style={{ color: 'rgba(14,42,120,0.25)', marginBottom: 12 }} />
+          <p style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 600, fontSize: 15, color: 'oklch(0.26 0.08 245)', marginBottom: 6 }}>
+            No documents yet
+          </p>
+          <p style={{ fontSize: 13, color: 'oklch(0.48 0.06 245)' }}>
             Documents appear here once your filing is processed.
           </p>
         </div>
       )}
 
-      {/* Available documents */}
+      {/* Available */}
       {!loading && availableDocs.length > 0 && (
-        <div className="mb-6">
-          <p
-            className="text-xs font-semibold uppercase tracking-wider mb-3"
-            style={{ color: 'var(--color-muted)' }}
-          >
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'oklch(0.42 0.08 245)', marginBottom: 10 }}>
             Ready to download
           </p>
-          <div
-            className="bg-white border rounded-xl overflow-hidden"
-            style={{ borderColor: 'var(--color-border)' }}
-          >
-            {availableDocs.map((doc) => (
+          <div style={card}>
+            {availableDocs.map((doc, i) => (
               <div
                 key={doc.id}
-                className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0 hover:bg-gray-50 transition-colors"
-                style={{ borderColor: 'var(--color-border)' }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '14px 18px',
+                  borderBottom: i < availableDocs.length - 1 ? '1px solid rgba(100,150,230,0.15)' : 'none',
+                }}
               >
-                <FileText
-                  className="shrink-0"
-                  size={20}
-                  style={{ color: 'var(--color-blue)' }}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">
+                <FileText size={18} style={{ color: 'oklch(0.50 0.16 250)', flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 600, fontSize: 13.5, color: 'oklch(0.22 0.08 245)', marginBottom: 2 }}>
                     {DOC_TYPE_LABELS[doc.type] ?? doc.type}
                   </p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
-                    {formatService(doc.order.serviceType)} · {doc.order.state} ·{' '}
-                    {formatDate(doc.createdAt)}
+                  <p style={{ fontSize: 12, color: 'oklch(0.50 0.05 245)' }}>
+                    {formatService(doc.order.serviceType)} · {doc.order.state} · {formatDate(doc.createdAt)}
                   </p>
                 </div>
                 <button
                   onClick={() => download(doc.id)}
-                  className="flex items-center gap-1 text-sm font-medium hover:underline"
-                  style={{ color: 'var(--color-blue)' }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    fontSize: 13, fontWeight: 600,
+                    fontFamily: 'var(--font-jakarta)',
+                    background: 'linear-gradient(135deg, oklch(0.26 0.08 245) 0%, oklch(0.20 0.07 245) 100%)',
+                    color: 'white', border: 'none', borderRadius: 8,
+                    padding: '7px 14px', cursor: 'pointer',
+                    boxShadow: '0 2px 10px rgba(14,42,120,0.28)',
+                  }}
                 >
-                  <Download size={14} /> Download
+                  <Download size={13} /> Download
                 </button>
               </div>
             ))}
@@ -150,37 +140,33 @@ export default function PortalDocumentsPage() {
         </div>
       )}
 
-      {/* Locked documents */}
+      {/* Locked */}
       {!loading && lockedDocs.length > 0 && (
-        <div>
-          <p
-            className="text-xs font-semibold uppercase tracking-wider mb-3"
-            style={{ color: 'var(--color-muted)' }}
-          >
+        <div style={{ opacity: 0.65 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'oklch(0.42 0.08 245)', marginBottom: 10 }}>
             Pending filing completion
           </p>
-          <div
-            className="bg-white border rounded-xl overflow-hidden opacity-60"
-            style={{ borderColor: 'var(--color-border)' }}
-          >
-            {lockedDocs.map((doc) => (
+          <div style={card}>
+            {lockedDocs.map((doc, i) => (
               <div
                 key={doc.id}
-                className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0"
-                style={{ borderColor: 'var(--color-border)' }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '14px 18px',
+                  borderBottom: i < lockedDocs.length - 1 ? '1px solid rgba(100,150,230,0.15)' : 'none',
+                }}
               >
-                <FileText size={20} className="shrink-0 text-gray-300" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-500">
+                <FileText size={18} style={{ color: 'rgba(14,42,120,0.25)', flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 600, fontSize: 13.5, color: 'oklch(0.40 0.06 245)', marginBottom: 2 }}>
                     {DOC_TYPE_LABELS[doc.type] ?? doc.type}
                   </p>
-                  <p className="text-xs mt-0.5 text-gray-400">
+                  <p style={{ fontSize: 12, color: 'oklch(0.55 0.04 245)' }}>
                     {formatService(doc.order.serviceType)} · {doc.order.state}
                   </p>
                 </div>
-                <div className="flex items-center gap-1 text-xs text-gray-400">
-                  <Lock size={13} />
-                  <span>Available once completed</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'oklch(0.52 0.05 245)' }}>
+                  <Lock size={12} /> Available once completed
                 </div>
               </div>
             ))}

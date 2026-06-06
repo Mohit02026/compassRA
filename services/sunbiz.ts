@@ -26,6 +26,13 @@ export async function lookupByDocNumber(docNumber: string): Promise<SunbizEntity
     if (!res.ok) return null
 
     const html = await res.text()
+
+    // SunBiz is behind Cloudflare — detect challenge page
+    if (html.includes('Just a moment') || html.includes('challenge-platform') || html.includes('cf-browser-verification')) {
+      // Return a sentinel that lets callers distinguish "blocked" from "not found"
+      return 'blocked' as unknown as null
+    }
+
     return parseEntityDetail(html, docNumber)
   } catch {
     return null

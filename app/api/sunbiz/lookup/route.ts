@@ -22,6 +22,14 @@ export async function GET(req: NextRequest) {
 
   const entity = await lookupByDocNumber(parsed.data.docNumber)
 
+  // Cloudflare blocked the request — tell the client to fall back to manual entry
+  if ((entity as unknown as string) === 'blocked') {
+    return NextResponse.json(
+      { error: { code: 503, message: 'SunBiz is temporarily unreachable — please fill in manually' } },
+      { status: 503 }
+    )
+  }
+
   if (!entity) {
     return NextResponse.json(
       { error: { code: 404, message: 'Entity not found on SunBiz' } },

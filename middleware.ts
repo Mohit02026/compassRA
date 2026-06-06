@@ -1,5 +1,8 @@
-import { auth } from '@/lib/auth'
+import NextAuth from 'next-auth'
+import { authConfig } from '@/lib/auth.config'
 import { NextResponse } from 'next/server'
+
+const { auth } = NextAuth(authConfig)
 
 export default auth((req) => {
   const { pathname } = req.nextUrl
@@ -14,15 +17,7 @@ export default auth((req) => {
     if (role !== 'CUSTOMER') {
       return NextResponse.redirect(new URL('/login', req.url))
     }
-    // Force password change on first login
-    if (
-      session.user.mustChangePwd &&
-      pathname !== '/portal/account/change-password'
-    ) {
-      return NextResponse.redirect(
-        new URL('/portal/account/change-password', req.url)
-      )
-    }
+    // mustChangePwd is optional — not forced
   }
 
   // Protect /ops/* — OPS or ADMIN only (exclude the login page itself)

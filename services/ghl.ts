@@ -246,21 +246,38 @@ export async function pushOrderToGHL(orderId: string, tenantId: string): Promise
     monetaryValue: Number(order.totalAmount),
   })
 
-  // 3. Upload filing sheet PDF to GHL media library — non-fatal if it fails
+  // 3. Upload the best available QC document to GHL media library — non-fatal if it fails.
+  // For LLC Formation: prefer ARTICLES_OF_ORG (mirrors the customer preview / SunBiz form).
+  // For all other service types: use FILING_SHEET (ops summary).
   let filingSheetUrl: string | undefined
   try {
-    const doc = await prisma.document.findFirst({
-      where: { orderId: order.id, type: 'FILING_SHEET', deletedAt: null },
+    const preferredType =
+      order.serviceType === 'LLC_FORMATION' ? 'ARTICLES_OF_ORG' : 'FILING_SHEET'
+    const fallbackType = 'FILING_SHEET'
+
+    let doc = await prisma.document.findFirst({
+      where: { orderId: order.id, type: preferredType, deletedAt: null },
     })
+    // Fall back to FILING_SHEET if ARTICLES_OF_ORG hasn't generated yet
+    if (!doc && preferredType !== fallbackType) {
+      doc = await prisma.document.findFirst({
+        where: { orderId: order.id, type: fallbackType, deletedAt: null },
+      })
+    }
+
     if (doc?.r2Key) {
       const pdfBuffer = await downloadFromR2(doc.r2Key)
       if (pdfBuffer.length > 0) {
-        const uploaded = await uploadMediaToGHL(pdfBuffer, `filing-sheet-${shortId}.pdf`)
+        const filename =
+          doc.type === 'ARTICLES_OF_ORG'
+            ? `articles-of-org-${shortId}.pdf`
+            : `filing-sheet-${shortId}.pdf`
+        const uploaded = await uploadMediaToGHL(pdfBuffer, filename)
         filingSheetUrl = uploaded.url
       }
     }
   } catch (err) {
-    console.error('[GHL] Filing sheet upload failed (non-fatal):', err)
+    console.error('[GHL] Document upload failed (non-fatal):', err)
   }
 
   // 4. Add rich note to the contact — non-fatal if it fails

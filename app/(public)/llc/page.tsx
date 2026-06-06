@@ -76,19 +76,91 @@ const defaultForm: FormState = {
   addOnCertificateOfStatus: false,
 }
 
+// ─── shared input style ────────────────────────────────────────────────────────
+const INPUT_STYLE: React.CSSProperties = {
+  width: '100%',
+  border: '1.5px solid oklch(0.88 0.015 245)',
+  borderRadius: 8,
+  padding: '9px 12px',
+  fontSize: 14,
+  outline: 'none',
+  background: 'white',
+  color: 'oklch(0.22 0.06 245)',
+  fontFamily: 'var(--font-dm)',
+  transition: 'border-color 0.15s, box-shadow 0.15s',
+}
+
+function StyledInput(props: React.InputHTMLAttributes<HTMLInputElement> & { extraStyle?: React.CSSProperties }) {
+  const { extraStyle, ...rest } = props
+  return (
+    <input
+      {...rest}
+      style={{ ...INPUT_STYLE, ...extraStyle }}
+      onFocus={(e) => {
+        e.target.style.borderColor = 'oklch(0.56 0.18 250)'
+        e.target.style.boxShadow = '0 0 0 3px oklch(0.56 0.18 250 / 0.12)'
+        props.onFocus?.(e)
+      }}
+      onBlur={(e) => {
+        e.target.style.borderColor = 'oklch(0.88 0.015 245)'
+        e.target.style.boxShadow = 'none'
+        props.onBlur?.(e)
+      }}
+    />
+  )
+}
+
+function StyledSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      style={{ ...INPUT_STYLE, cursor: 'pointer', ...props.style }}
+      onFocus={(e) => {
+        e.target.style.borderColor = 'oklch(0.56 0.18 250)'
+        e.target.style.boxShadow = '0 0 0 3px oklch(0.56 0.18 250 / 0.12)'
+        props.onFocus?.(e)
+      }}
+      onBlur={(e) => {
+        e.target.style.borderColor = 'oklch(0.88 0.015 245)'
+        e.target.style.boxShadow = 'none'
+        props.onBlur?.(e)
+      }}
+    />
+  )
+}
+
 function inputCls(extra = '') {
-  return `w-full border rounded-md px-3 py-2 text-sm outline-none focus:ring-2 ${extra}`
+  return `w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-all ${extra}`
 }
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-lg p-5 mb-4" style={{ border: '1px solid var(--color-border)' }}>
-      <h2
-        className="text-sm font-semibold mb-4"
-        style={{ color: 'var(--color-navy-mid)', fontFamily: 'var(--font-jakarta)' }}
-      >
-        {title}
-      </h2>
+    <div
+      style={{
+        background: 'rgba(255,255,255,0.90)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
+        borderRadius: 18,
+        border: '1px solid rgba(255,255,255,0.85)',
+        boxShadow: '0 6px 28px oklch(0.22 0.06 245 / 0.11), 0 1px 4px oklch(0.22 0.06 245 / 0.06), inset 0 1px 0 rgba(255,255,255,0.95)',
+        padding: '22px 26px',
+        marginBottom: 16,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, paddingBottom: 14, borderBottom: '1px solid oklch(0.93 0.01 245)' }}>
+        <div style={{ width: 4, height: 18, borderRadius: 2, background: 'linear-gradient(180deg, oklch(0.60 0.20 250) 0%, oklch(0.48 0.18 250) 100%)', flexShrink: 0, boxShadow: '0 2px 8px oklch(0.56 0.18 250 / 0.35)' }} />
+        <h2
+          style={{
+            fontFamily: 'var(--font-jakarta)',
+            fontWeight: 700,
+            fontSize: 14.5,
+            color: 'oklch(0.22 0.08 245)',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {title}
+        </h2>
+      </div>
       {children}
     </div>
   )
@@ -97,31 +169,106 @@ function SectionCard({ title, children }: { title: string; children: React.React
 function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
   return (
     <div>
-      <label className="block text-sm font-medium mb-1" style={{ color: '#374151' }}>
+      <label
+        style={{
+          display: 'block',
+          fontSize: 13,
+          fontWeight: 500,
+          fontFamily: 'var(--font-jakarta)',
+          color: 'oklch(0.34 0.06 245)',
+          marginBottom: 6,
+        }}
+      >
         {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
+        {required && <span style={{ color: 'oklch(0.55 0.18 25)', marginLeft: 2 }}>*</span>}
       </label>
       {children}
     </div>
   )
 }
 
+const STEP_LABELS = ['Business details', 'Contact & RA', 'Add-ons & Review']
+
 function ProgressBar({ step, total }: { step: number; total: number }) {
   return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium" style={{ color: 'var(--color-muted)' }}>
-          Step {step} of {total}
-        </span>
-        <span className="text-xs" style={{ color: 'var(--color-muted)' }}>
-          {step === 1 ? 'Business details' : step === 2 ? 'Contact & RA' : 'Add-ons & Review'}
-        </span>
-      </div>
-      <div className="h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
-        <div
-          className="h-1.5 rounded-full transition-all"
-          style={{ backgroundColor: 'var(--color-navy)', width: `${(step / total) * 100}%` }}
-        />
+    <div style={{
+      marginBottom: 24,
+      background: 'rgba(255,255,255,0.75)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+      borderRadius: 14,
+      border: '1px solid rgba(255,255,255,0.8)',
+      boxShadow: '0 2px 12px oklch(0.22 0.06 245 / 0.07)',
+      padding: '14px 20px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+        {Array.from({ length: total }, (_, i) => {
+          const num = i + 1
+          const done = num < step
+          const active = num === step
+          return (
+            <div key={num} style={{ display: 'flex', alignItems: 'center', flex: i < total - 1 ? 1 : 'none' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                <div
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-jakarta)',
+                    background: done
+                      ? 'linear-gradient(135deg, oklch(0.60 0.20 250), oklch(0.50 0.18 250))'
+                      : active
+                        ? 'linear-gradient(135deg, oklch(0.26 0.08 245), oklch(0.20 0.07 245))'
+                        : 'rgba(255,255,255,0.8)',
+                    color: done || active ? 'white' : 'oklch(0.65 0.04 245)',
+                    border: done || active ? 'none' : '1.5px solid oklch(0.86 0.015 245)',
+                    boxShadow: done
+                      ? '0 3px 10px oklch(0.56 0.18 250 / 0.35)'
+                      : active
+                        ? '0 3px 10px oklch(0.22 0.06 245 / 0.30)'
+                        : 'none',
+                    transition: 'all 0.3s',
+                    flexShrink: 0,
+                  }}
+                >
+                  {done ? '✓' : num}
+                </div>
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontFamily: 'var(--font-jakarta)',
+                    fontWeight: active ? 600 : 400,
+                    color: active ? 'oklch(0.22 0.08 245)' : 'oklch(0.60 0.04 245)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {STEP_LABELS[i]}
+                </span>
+              </div>
+              {i < total - 1 && (
+                <div
+                  style={{
+                    flex: 1,
+                    height: 2,
+                    marginBottom: 24,
+                    marginLeft: 6,
+                    marginRight: 6,
+                    borderRadius: 1,
+                    background: num < step
+                      ? 'linear-gradient(90deg, oklch(0.56 0.18 250), oklch(0.52 0.16 250))'
+                      : 'oklch(0.90 0.01 245)',
+                    transition: 'background 0.3s',
+                  }}
+                />
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -141,7 +288,7 @@ function LLCFormationForm() {
   const [step, setStep] = useState(1)
   const [form, setForm] = useState<FormState>({
     ...defaultForm,
-    businessName: searchParams.get('name') ?? '',
+    businessName: searchParams?.get('name') ?? '',
   })
   const [nameCheck, setNameCheck] = useState<{ available: NameAvailability; checking: boolean } | null>(null)
 
@@ -236,21 +383,45 @@ function LLCFormationForm() {
   const borderStyle = { borderColor: 'var(--color-border)' }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="lg:grid lg:gap-8 lg:items-start" style={{ gridTemplateColumns: '1fr 380px' }}>
+    <div style={{ maxWidth: 1440, margin: '0 auto', padding: '0 28px 72px' }}>
+
+      {/* Page header */}
+      <div style={{ padding: '28px 0 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              color: 'oklch(0.50 0.10 250)',
+              fontFamily: 'var(--font-jakarta)',
+            }}
+          >
+            LLC Formation · Florida
+          </span>
+        </div>
+        <h1
+          style={{
+            fontFamily: 'var(--font-jakarta)',
+            fontWeight: 800,
+            fontSize: 'clamp(24px, 3vw, 32px)',
+            color: 'oklch(0.22 0.08 245)',
+            marginBottom: 6,
+            letterSpacing: '-0.02em',
+          }}
+        >
+          Form a Florida LLC
+        </h1>
+        <p style={{ fontSize: 14, color: 'oklch(0.55 0.04 245)', lineHeight: 1.6 }}>
+          Flat fee — $125 service + $138.75 state fee. Filed by a real person.
+        </p>
+      </div>
+
+      <div className="lg:grid lg:gap-12 lg:items-start" style={{ gridTemplateColumns: '1fr 520px' }}>
 
       {/* ── LEFT: form ── */}
       <div>
-      <h1
-        className="text-2xl font-bold mb-1"
-        style={{ color: 'var(--color-navy-mid)', fontFamily: 'var(--font-jakarta)' }}
-      >
-        Form a Florida LLC
-      </h1>
-      <p className="text-sm mb-6" style={{ color: 'var(--color-muted)' }}>
-        Flat fee — $125 service + $138.75 state fee. Filed by a real person.
-      </p>
-
       <ProgressBar step={step} total={3} />
 
       {/* ── STEP 1 ── */}
@@ -260,22 +431,34 @@ function LLCFormationForm() {
             <div className="space-y-4">
               <Field label="LLC Name" required>
                 <div className="flex gap-2">
-                  <input
+                  <StyledInput
                     type="text"
                     name="businessName"
                     value={form.businessName}
                     onChange={(e) => set('businessName', e.target.value)}
                     placeholder="Sunshine Ventures LLC"
-                    className={inputCls('flex-1')}
-                    style={borderStyle}
                     required
+                    extraStyle={{ flex: 1 }}
                   />
                   <button
                     type="button"
                     onClick={checkName}
                     disabled={!form.businessName.trim() || nameCheck?.checking}
-                    className="text-sm font-medium rounded-md px-4 py-2 transition-opacity disabled:opacity-50 whitespace-nowrap"
-                    style={{ backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-navy-mid)' }}
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      fontFamily: 'var(--font-jakarta)',
+                      padding: '9px 16px',
+                      borderRadius: 9,
+                      border: '1.5px solid oklch(0.84 0.04 250)',
+                      background: 'linear-gradient(135deg, oklch(0.97 0.02 250) 0%, oklch(0.94 0.04 250) 100%)',
+                      color: 'oklch(0.40 0.12 250)',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      boxShadow: '0 1px 4px oklch(0.56 0.18 250 / 0.12)',
+                      opacity: (!form.businessName.trim() || nameCheck?.checking) ? 0.5 : 1,
+                      transition: 'all 0.15s',
+                    }}
                   >
                     {nameCheck?.checking ? <Loader2 size={14} className="animate-spin" /> : 'Check availability'}
                   </button>
@@ -286,11 +469,10 @@ function LLCFormationForm() {
               </Field>
 
               <Field label="State">
-                <input
+                <StyledInput
                   value="Florida (FL)"
                   readOnly
-                  className={inputCls('bg-gray-50 text-gray-500')}
-                  style={borderStyle}
+                  extraStyle={{ background: 'oklch(0.96 0.005 245)', color: 'oklch(0.55 0.04 245)', cursor: 'default' }}
                 />
               </Field>
 
@@ -309,12 +491,10 @@ function LLCFormationForm() {
                   ))}
                 </div>
                 {form.effectiveType === 'future' && (
-                  <input
+                  <StyledInput
                     type="date"
                     value={form.effectiveDate}
                     onChange={(e) => set('effectiveDate', e.target.value)}
-                    className={inputCls()}
-                    style={borderStyle}
                   />
                 )}
               </Field>
@@ -340,33 +520,31 @@ function LLCFormationForm() {
           <SectionCard title="Members">
             <div className="space-y-3">
               {form.members.map((member, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <input
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <StyledInput
                     type="text"
                     value={member.name}
                     onChange={(e) => updateMember(i, 'name', e.target.value)}
                     placeholder="Full name"
-                    className={inputCls('flex-1')}
-                    style={borderStyle}
+                    extraStyle={{ flex: 1 }}
                   />
-                  <div className="flex items-center gap-1">
-                    <input
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <StyledInput
                       type="number"
                       value={member.ownership}
                       onChange={(e) => updateMember(i, 'ownership', e.target.value)}
                       placeholder="100"
                       min="1"
                       max="100"
-                      className={inputCls('w-20')}
-                      style={borderStyle}
+                      extraStyle={{ width: 72 }}
                     />
-                    <span className="text-sm" style={{ color: 'var(--color-muted)' }}>%</span>
+                    <span style={{ fontSize: 14, color: 'oklch(0.55 0.04 245)' }}>%</span>
                   </div>
                   {form.members.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeMember(i)}
-                      className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50"
+                      style={{ padding: 6, borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', color: 'oklch(0.65 0.04 245)' }}
                     >
                       <Trash2 size={15} />
                     </button>
@@ -384,12 +562,25 @@ function LLCFormationForm() {
             </button>
           </SectionCard>
 
-          <div className="flex justify-end mt-4">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
             <button
               onClick={() => setStep(2)}
               disabled={!form.businessName.trim() || !form.members[0]?.name.trim()}
-              className="text-white text-sm font-medium rounded-md px-6 py-2.5 transition-opacity disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-navy)' }}
+              style={{
+                background: 'linear-gradient(135deg, oklch(0.26 0.08 245) 0%, oklch(0.20 0.07 245) 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 11,
+                padding: '12px 28px',
+                fontSize: 14,
+                fontWeight: 600,
+                fontFamily: 'var(--font-jakarta)',
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px oklch(0.22 0.06 245 / 0.35), 0 1px 3px oklch(0.22 0.06 245 / 0.18)',
+                opacity: (!form.businessName.trim() || !form.members[0]?.name.trim()) ? 0.45 : 1,
+                transition: 'all 0.15s',
+                letterSpacing: '-0.01em',
+              }}
             >
               Continue →
             </button>
@@ -403,35 +594,29 @@ function LLCFormationForm() {
           <SectionCard title="Your Contact Details">
             <div className="grid grid-cols-2 gap-4">
               <Field label="Full Name" required>
-                <input
+                <StyledInput
                   type="text"
                   value={form.contactName}
                   onChange={(e) => set('contactName', e.target.value)}
                   placeholder="Jane Smith"
-                  className={inputCls()}
-                  style={borderStyle}
                   required
                 />
               </Field>
               <Field label="Email" required>
-                <input
+                <StyledInput
                   type="email"
                   value={form.contactEmail}
                   onChange={(e) => set('contactEmail', e.target.value)}
                   placeholder="jane@example.com"
-                  className={inputCls()}
-                  style={borderStyle}
                   required
                 />
               </Field>
               <Field label="Phone">
-                <input
+                <StyledInput
                   type="tel"
                   value={form.contactPhone}
                   onChange={(e) => set('contactPhone', e.target.value)}
                   placeholder="+1 (555) 000-0000"
-                  className={inputCls()}
-                  style={borderStyle}
                 />
               </Field>
             </div>
@@ -441,44 +626,37 @@ function LLCFormationForm() {
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <Field label="Street" required>
-                  <input
+                  <StyledInput
                     type="text"
                     value={form.principalStreet}
                     onChange={(e) => set('principalStreet', e.target.value)}
                     placeholder="123 Main St"
-                    className={inputCls()}
-                    style={borderStyle}
                     required
                   />
                 </Field>
               </div>
               <Field label="City" required>
-                <input
+                <StyledInput
                   type="text"
                   value={form.principalCity}
                   onChange={(e) => set('principalCity', e.target.value)}
                   placeholder="Miami"
-                  className={inputCls()}
-                  style={borderStyle}
                   required
                 />
               </Field>
               <Field label="State">
-                <input
+                <StyledInput
                   value="FL"
                   readOnly
-                  className={inputCls('bg-gray-50 text-gray-500')}
-                  style={borderStyle}
+                  extraStyle={{ background: 'oklch(0.96 0.005 245)', color: 'oklch(0.55 0.04 245)', cursor: 'default' }}
                 />
               </Field>
               <Field label="ZIP" required>
-                <input
+                <StyledInput
                   type="text"
                   value={form.principalZip}
                   onChange={(e) => set('principalZip', e.target.value)}
                   placeholder="33101"
-                  className={inputCls()}
-                  style={borderStyle}
                   required
                 />
               </Field>
@@ -501,41 +679,33 @@ function LLCFormationForm() {
                 </p>
                 <div className="col-span-2">
                   <Field label="Street">
-                    <input
+                    <StyledInput
                       type="text"
                       value={form.mailingStreet}
                       onChange={(e) => set('mailingStreet', e.target.value)}
                       placeholder="456 Other St"
-                      className={inputCls()}
-                      style={borderStyle}
                     />
                   </Field>
                 </div>
                 <Field label="City">
-                  <input
+                  <StyledInput
                     type="text"
                     value={form.mailingCity}
                     onChange={(e) => set('mailingCity', e.target.value)}
-                    className={inputCls()}
-                    style={borderStyle}
                   />
                 </Field>
                 <Field label="State">
-                  <input
+                  <StyledInput
                     type="text"
                     value={form.mailingState}
                     onChange={(e) => set('mailingState', e.target.value)}
-                    className={inputCls()}
-                    style={borderStyle}
                   />
                 </Field>
                 <Field label="ZIP">
-                  <input
+                  <StyledInput
                     type="text"
                     value={form.mailingZip}
                     onChange={(e) => set('mailingZip', e.target.value)}
-                    className={inputCls()}
-                    style={borderStyle}
                   />
                 </Field>
               </div>
@@ -573,51 +743,59 @@ function LLCFormationForm() {
             {form.useCompassRA ? (
               <div className="grid grid-cols-2 gap-4">
                 <Field label="RA Name">
-                  <input value={COMPASS_RA_NAME} readOnly className={inputCls('bg-gray-50 text-gray-500')} style={borderStyle} />
+                  <StyledInput value={COMPASS_RA_NAME} readOnly extraStyle={{ background: 'oklch(0.96 0.005 245)', color: 'oklch(0.55 0.04 245)', cursor: 'default' }} />
                 </Field>
                 <Field label="RA Address">
-                  <input value={COMPASS_RA_ADDRESS} readOnly className={inputCls('bg-gray-50 text-gray-500')} style={borderStyle} />
+                  <StyledInput value={COMPASS_RA_ADDRESS} readOnly extraStyle={{ background: 'oklch(0.96 0.005 245)', color: 'oklch(0.55 0.04 245)', cursor: 'default' }} />
                 </Field>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4">
                 <Field label="RA Name">
-                  <input
+                  <StyledInput
                     type="text"
                     value={form.raName}
                     onChange={(e) => set('raName', e.target.value)}
                     placeholder="Agent name"
-                    className={inputCls()}
-                    style={borderStyle}
                   />
                 </Field>
                 <Field label="RA Address">
-                  <input
+                  <StyledInput
                     type="text"
                     value={form.raAddress}
                     onChange={(e) => set('raAddress', e.target.value)}
                     placeholder="123 Agent St, City, FL 00000"
-                    className={inputCls()}
-                    style={borderStyle}
                   />
                 </Field>
               </div>
             )}
           </SectionCard>
 
-          <div className="flex items-center justify-between mt-4">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
             <button
               onClick={() => setStep(1)}
-              className="text-sm"
-              style={{ color: 'var(--color-muted)' }}
+              style={{
+                fontSize: 13, fontFamily: 'var(--font-jakarta)', fontWeight: 500,
+                color: 'oklch(0.45 0.06 245)', cursor: 'pointer',
+                background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(8px)',
+                border: '1px solid oklch(0.88 0.015 245)',
+                borderRadius: 9, padding: '10px 16px',
+              }}
             >
               ← Back
             </button>
             <button
               onClick={() => setStep(3)}
               disabled={!form.contactName.trim() || !form.contactEmail.trim() || !form.principalStreet.trim()}
-              className="text-white text-sm font-medium rounded-md px-6 py-2.5 transition-opacity disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-navy)' }}
+              style={{
+                background: 'linear-gradient(135deg, oklch(0.26 0.08 245) 0%, oklch(0.20 0.07 245) 100%)',
+                color: 'white', border: 'none',
+                borderRadius: 11, padding: '12px 28px', fontSize: 14, fontWeight: 600,
+                fontFamily: 'var(--font-jakarta)', cursor: 'pointer',
+                boxShadow: '0 4px 16px oklch(0.22 0.06 245 / 0.35), 0 1px 3px oklch(0.22 0.06 245 / 0.18)',
+                opacity: (!form.contactName.trim() || !form.contactEmail.trim() || !form.principalStreet.trim()) ? 0.45 : 1,
+                transition: 'all 0.15s', letterSpacing: '-0.01em',
+              }}
             >
               Continue →
             </button>
@@ -668,18 +846,29 @@ function LLCFormationForm() {
             </div>
           </SectionCard>
 
-          <div className="flex items-center justify-between mt-4">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
             <button
               onClick={() => setStep(2)}
-              className="text-sm"
-              style={{ color: 'var(--color-muted)' }}
+              style={{
+                fontSize: 13, fontFamily: 'var(--font-jakarta)', fontWeight: 500,
+                color: 'oklch(0.45 0.06 245)', cursor: 'pointer',
+                background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(8px)',
+                border: '1px solid oklch(0.88 0.015 245)',
+                borderRadius: 9, padding: '10px 16px',
+              }}
             >
               ← Back
             </button>
             <button
               onClick={handleProceedToCheckout}
-              className="text-white text-sm font-medium rounded-md px-6 py-2.5 transition-opacity hover:opacity-90"
-              style={{ backgroundColor: 'var(--color-navy)' }}
+              style={{
+                background: 'linear-gradient(135deg, oklch(0.60 0.22 250) 0%, oklch(0.50 0.20 250) 100%)',
+                color: 'white', border: 'none',
+                borderRadius: 11, padding: '13px 32px', fontSize: 14.5, fontWeight: 700,
+                fontFamily: 'var(--font-jakarta)', cursor: 'pointer',
+                boxShadow: '0 6px 22px oklch(0.56 0.18 250 / 0.45), 0 1px 4px oklch(0.56 0.18 250 / 0.22)',
+                letterSpacing: '-0.01em',
+              }}
             >
               Proceed to Payment →
             </button>
@@ -693,7 +882,7 @@ function LLCFormationForm() {
         <LLCDocumentPreview form={form} step={step} />
       </div>
 
-      </div>{/* end grid */}
+    </div>
     </div>
   )
 }
@@ -739,20 +928,60 @@ function AddOnRow({
   onChange: (v: boolean) => void
 }) {
   return (
-    <label className="flex items-start gap-3 p-3 rounded-lg cursor-pointer border transition-colors"
-      style={{ borderColor: checked ? 'var(--color-navy)' : 'var(--color-border)', backgroundColor: checked ? 'var(--color-bg)' : 'white' }}
+    <label
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 14,
+        padding: '16px 18px',
+        borderRadius: 12,
+        cursor: 'pointer',
+        border: checked ? '1.5px solid oklch(0.70 0.14 250)' : '1.5px solid oklch(0.90 0.01 245)',
+        background: checked
+          ? 'linear-gradient(135deg, oklch(0.97 0.04 250) 0%, oklch(0.95 0.06 250) 100%)'
+          : 'rgba(255,255,255,0.75)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        boxShadow: checked
+          ? '0 3px 14px oklch(0.56 0.18 250 / 0.14), inset 0 1px 0 rgba(255,255,255,0.9)'
+          : '0 1px 4px oklch(0.22 0.06 245 / 0.05)',
+        transition: 'all 0.18s',
+      }}
     >
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 rounded"
-      />
-      <div className="flex-1">
-        <p className="text-sm font-medium" style={{ color: '#374151' }}>{label}</p>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>{description}</p>
+      <div
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: 6,
+          border: checked ? 'none' : '1.5px solid oklch(0.82 0.02 245)',
+          background: checked
+            ? 'linear-gradient(135deg, oklch(0.60 0.20 250), oklch(0.50 0.18 250))'
+            : 'rgba(255,255,255,0.9)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          marginTop: 1,
+          boxShadow: checked ? '0 2px 8px oklch(0.56 0.18 250 / 0.35)' : 'none',
+          transition: 'all 0.18s',
+        }}
+        onClick={() => onChange(!checked)}
+      >
+        {checked && <span style={{ color: 'white', fontSize: 12, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} style={{ display: 'none' }} />
       </div>
-      <span className="text-sm font-semibold shrink-0" style={{ color: 'var(--color-navy-mid)' }}>
+      <div style={{ flex: 1 }}>
+        <p style={{ fontSize: 14, fontWeight: 600, color: checked ? 'oklch(0.28 0.10 250)' : 'oklch(0.26 0.08 245)', fontFamily: 'var(--font-jakarta)', marginBottom: 3 }}>{label}</p>
+        <p style={{ fontSize: 12.5, color: 'oklch(0.55 0.04 245)', lineHeight: 1.5 }}>{description}</p>
+      </div>
+      <span style={{
+        fontSize: 13, fontWeight: 700,
+        color: checked ? 'oklch(0.42 0.16 250)' : 'oklch(0.48 0.06 245)',
+        flexShrink: 0,
+        fontFamily: 'var(--font-jakarta)',
+        background: checked ? 'oklch(0.92 0.08 250)' : 'oklch(0.95 0.01 245)',
+        padding: '3px 9px', borderRadius: 6,
+      }}>
         +${price}
       </span>
     </label>
@@ -761,7 +990,7 @@ function AddOnRow({
 
 function LineItem({ label, amount }: { label: string; amount: number }) {
   return (
-    <div className="flex justify-between" style={{ color: '#374151' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: 'oklch(0.36 0.06 245)' }}>
       <span>{label}</span>
       <span>${amount.toFixed(2)}</span>
     </div>

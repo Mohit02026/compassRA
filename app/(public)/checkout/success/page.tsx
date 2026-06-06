@@ -1,26 +1,28 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Building2, CheckCircle2, Mail, ArrowRight } from 'lucide-react'
+import { Building2, CheckCircle2, Mail, ArrowRight, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
-export default function CheckoutSuccessPage() {
+// useSearchParams() requires Suspense in Next.js 14 App Router —
+// without it the params are empty on first render and the page redirects away
+function SuccessContent() {
   const params = useSearchParams()
   const router = useRouter()
   const [status, setStatus] = useState<'checking' | 'success' | 'pending' | 'failed'>('checking')
 
   useEffect(() => {
+    if (!params) return // null during SSR — wait for client hydration
     const redirectStatus = params.get('redirect_status')
+    if (!redirectStatus) return // params not yet hydrated — wait for next render
     if (redirectStatus === 'succeeded') {
       setStatus('success')
     } else if (redirectStatus === 'processing') {
       setStatus('pending')
     } else if (redirectStatus === 'requires_payment_method') {
-      // Payment failed — send back to checkout
       router.replace('/checkout')
     } else {
-      // No params — direct navigation, redirect home
       router.replace('/')
     }
   }, [params, router])
@@ -158,5 +160,19 @@ export default function CheckoutSuccessPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function CheckoutSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
+          <Loader2 size={24} className="animate-spin" style={{ color: 'var(--color-muted)' }} />
+        </div>
+      }
+    >
+      <SuccessContent />
+    </Suspense>
   )
 }

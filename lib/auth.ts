@@ -3,6 +3,7 @@ import Credentials from 'next-auth/providers/credentials'
 import { compare } from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { authConfig } from '@/lib/auth.config'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -10,10 +11,7 @@ const loginSchema = z.object({
 })
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: { strategy: 'jwt' },
-  pages: {
-    signIn: '/login',
-  },
+  ...authConfig,
   providers: [
     Credentials({
       name: 'credentials',
@@ -45,23 +43,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        // first sign-in — persist custom fields into the JWT
-        token.id = user.id
-        token.role = (user as { role: string }).role
-        token.tenantId = (user as { tenantId: string }).tenantId
-        token.mustChangePwd = (user as { mustChangePwd: boolean }).mustChangePwd
-      }
-      return token
-    },
-    async session({ session, token }) {
-      session.user.id = token.id as string
-      session.user.role = token.role as string
-      session.user.tenantId = token.tenantId as string
-      session.user.mustChangePwd = token.mustChangePwd as boolean
-      return session
-    },
-  },
 })

@@ -11,11 +11,17 @@ interface NoticeItem {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+const card: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.85)',
+  backdropFilter: 'blur(14px)',
+  WebkitBackdropFilter: 'blur(14px)',
+  borderRadius: 16,
+  border: '1px solid rgba(100,150,230,0.22)',
+  boxShadow: '0 2px 12px rgba(14,42,120,0.07)',
+  overflow: 'hidden',
 }
 
 export default function NoticesPage() {
@@ -26,10 +32,7 @@ export default function NoticesPage() {
   useEffect(() => {
     void fetch('/api/portal/notices')
       .then((r) => r.json())
-      .then((j) => {
-        setNotices(j.data?.items ?? [])
-        setLoading(false)
-      })
+      .then((j) => { setNotices(j.data?.items ?? []); setLoading(false) })
   }, [])
 
   async function download(id: string, filename: string) {
@@ -50,46 +53,40 @@ export default function NoticesPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1
-          className="text-2xl font-bold"
-          style={{ fontFamily: 'var(--font-jakarta)', color: 'var(--color-navy-mid)' }}
-        >
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 700, fontSize: 24, color: 'oklch(0.20 0.08 245)', marginBottom: 4 }}>
           Legal notices
         </h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--color-muted)' }}>
+        <p style={{ fontSize: 14, color: 'oklch(0.42 0.07 245)' }}>
           Notices forwarded to your registered agent.
         </p>
       </div>
 
-      <div
-        className="bg-white border rounded-xl overflow-hidden"
-        style={{ borderColor: 'var(--color-border)' }}
-      >
-        {loading && (
-          <p className="text-sm text-gray-400 px-5 py-6">Loading…</p>
-        )}
+      <div style={card}>
+        {loading && <p style={{ fontSize: 13, color: 'oklch(0.50 0.06 245)', padding: '20px' }}>Loading…</p>}
 
         {!loading && notices.length === 0 && (
-          <div className="flex flex-col items-center py-16">
-            <Bell className="text-gray-300" size={40} />
-            <p className="text-sm font-medium text-gray-500 mt-3">No legal notices</p>
-            <p className="text-xs text-gray-400 mt-1">
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '56px 32px', textAlign: 'center' }}>
+            <Bell size={36} style={{ color: 'rgba(14,42,120,0.22)', marginBottom: 12 }} />
+            <p style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 600, fontSize: 14, color: 'oklch(0.26 0.08 245)', marginBottom: 4 }}>
+              No legal notices
+            </p>
+            <p style={{ fontSize: 12.5, color: 'oklch(0.50 0.05 245)' }}>
               Notices forwarded to your registered agent appear here.
             </p>
           </div>
         )}
 
         {!loading && notices.length > 0 && (
-          <table className="w-full text-sm">
+          <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+              <tr style={{ borderBottom: '1px solid rgba(100,150,230,0.18)' }}>
                 {['Document', 'Received', 'Status', ''].map((h, i) => (
-                  <th
-                    key={i}
-                    className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide"
-                    style={{ color: 'var(--color-muted)' }}
-                  >
+                  <th key={i} style={{
+                    padding: '10px 20px', textAlign: 'left', fontSize: 11,
+                    fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em',
+                    color: 'oklch(0.50 0.06 245)',
+                  }}>
                     {h}
                   </th>
                 ))}
@@ -97,37 +94,42 @@ export default function NoticesPage() {
             </thead>
             <tbody>
               {notices.map((notice) => (
-                <tr
-                  key={notice.id}
-                  style={{ borderBottom: '1px solid var(--color-border)' }}
-                >
-                  <td className="px-5 py-3">
-                    <p className="font-medium" style={{ color: 'var(--color-navy-mid)' }}>
-                      {notice.filename}
-                    </p>
+                <tr key={notice.id} style={{ borderBottom: '1px solid rgba(100,150,230,0.12)' }}>
+                  <td style={{ padding: '12px 20px', fontWeight: 600, color: 'oklch(0.24 0.08 245)', fontFamily: 'var(--font-jakarta)' }}>
+                    {notice.filename}
                   </td>
-                  <td className="px-5 py-3" style={{ color: 'var(--color-muted)' }}>
+                  <td style={{ padding: '12px 20px', color: 'oklch(0.48 0.06 245)' }}>
                     {formatDate(notice.receivedAt)}
                   </td>
-                  <td className="px-5 py-3">
+                  <td style={{ padding: '12px 20px' }}>
                     {notice.forwardedAt ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[--color-completed-bg] text-[--color-completed-text] border border-[--color-completed-border]">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: 20, fontSize: 11.5, fontWeight: 600, background: 'oklch(0.94 0.06 145)', color: 'oklch(0.40 0.14 145)', border: '1px solid oklch(0.75 0.12 145)' }}>
                         Forwarded
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[--color-intake-bg] text-[--color-intake-text] border border-[--color-intake-border]">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: 20, fontSize: 11.5, fontWeight: 600, background: 'oklch(0.94 0.04 250)', color: 'oklch(0.45 0.14 250)', border: '1px solid oklch(0.80 0.08 250)' }}>
                         Received
                       </span>
                     )}
                   </td>
-                  <td className="px-5 py-3 text-right">
+                  <td style={{ padding: '12px 20px', textAlign: 'right' }}>
                     <button
                       onClick={() => void download(notice.id, notice.filename)}
                       disabled={downloading === notice.id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors hover:bg-gray-50 disabled:opacity-50"
-                      style={{ borderColor: 'var(--color-border)', color: 'var(--color-navy-mid)' }}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        fontSize: 12.5, fontWeight: 600,
+                        fontFamily: 'var(--font-jakarta)',
+                        background: downloading === notice.id
+                          ? 'rgba(14,42,120,0.06)'
+                          : 'linear-gradient(135deg, oklch(0.26 0.08 245) 0%, oklch(0.20 0.07 245) 100%)',
+                        color: downloading === notice.id ? 'oklch(0.42 0.08 245)' : 'white',
+                        border: 'none', borderRadius: 7, padding: '6px 12px', cursor: 'pointer',
+                        boxShadow: downloading === notice.id ? 'none' : '0 2px 8px rgba(14,42,120,0.25)',
+                        opacity: downloading === notice.id ? 0.7 : 1,
+                      }}
                     >
-                      <Download size={13} />
+                      <Download size={12} />
                       {downloading === notice.id ? 'Downloading…' : 'Download'}
                     </button>
                   </td>

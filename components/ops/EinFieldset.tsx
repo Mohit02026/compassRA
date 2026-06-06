@@ -54,6 +54,7 @@ export interface EinFields {
   einDateStarted: string
   einReasonApplying: string
   einIsUSCitizen: boolean
+  einCounty: string
 }
 
 interface Props {
@@ -186,6 +187,15 @@ export function EinFieldset({ values, onChange }: Props) {
             </option>
           ))}
         </Select>
+      </Field>
+
+      {/* County — IRS SS-4 Line 6, cannot be derived from city */}
+      <Field label="County" hint="IRS SS-4 Line 6 — county where business is located (e.g. Miami-Dade)">
+        <Input
+          value={values.einCounty}
+          onChange={(e) => onChange('einCounty', e.target.value)}
+          placeholder="Pinellas"
+        />
       </Field>
     </div>
   )

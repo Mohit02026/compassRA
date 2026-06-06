@@ -32,7 +32,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${plusJakartaSans.variable} ${dmSans.variable} ${inter.variable} antialiased`}>
+      <body className={`${plusJakartaSans.variable} ${dmSans.variable} ${inter.variable} antialiased`} suppressHydrationWarning>
         {children}
       </body>
     </html>
