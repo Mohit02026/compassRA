@@ -1,0 +1,2 @@
+[variables]
+npm_config_node_linker = "hoisted"

@@ -1,39 +1,19 @@
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { createRequire } from 'module'
+import { withSentryConfig } from '@sentry/nextjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const _require = createRequire(import.meta.url)
 
-// pnpm creates two Next.js variants:
-// 1. next@14.2.35_@playwright+te_... (what node_modules/next symlinks to)
-// 2. next@14.2.35_react-dom@18.3.1_... (what next-auth's node_modules/next symlinks to)
-//
-// Both hard-link to the same pnpm store files but webpack assigns different
-// module IDs to each path, creating duplicate React context instances:
-//   "Invariant: Missing ActionQueueContext"
-//
-// Fix: alias 'next' to the explicit playwright-variant path so ALL packages
-// (including next-auth) use the same module ID. Both variants contain identical
-// files (hard links), so behaviour is unchanged.
-
-// Use the playwright variant as canonical (it's what node_modules/next points to).
-// Must be an absolute non-symlink path so webpack skips fs.realpath() which can
-// return D:\compass (lowercase) vs D:\Compass (uppercase) on Windows.
-const canonicalNext = path.join(
-  __dirname,
-  'node_modules/.pnpm/next@14.2.35_@playwright+te_a466e221dfe76eb6a42f4d2db719b2ed/node_modules/next'
-)
+const canonicalNext = path.dirname(_require.resolve('next/package.json'))
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Required for instrumentation.ts — enables MSW server-side intercepts in E2E
   experimental: {
     instrumentationHook: true,
   },
   webpack: (config) => {
-    // Redirect ALL imports of 'next/*' to the playwright-variant absolute path.
-    // Without $ suffix this matches 'next' AND 'next/dist/...' (prefix match).
-    // next-auth previously resolved 'next' to the react-dom variant — now both
-    // use the playwright variant path, yielding one module ID per file.
     config.resolve.alias = {
       ...config.resolve.alias,
       next: canonicalNext,
@@ -42,4 +22,13 @@ const nextConfig = {
   },
 }
 
-export default nextConfig
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  // Silent in CI/build to avoid noise when DSN not set
+  silent: !process.env.SENTRY_DSN,
+  // No source map upload needed unless you want readable stack traces in Sentry
+  sourcemaps: { disable: true },
+  // Don't auto-instrument — we capture what matters manually
+  autoInstrumentServerFunctions: false,
+})

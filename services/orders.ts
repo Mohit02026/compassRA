@@ -248,13 +248,13 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   }
 
   // 6. Fire welcome email in background (non-blocking)
-  void sendWelcome({
+  sendWelcome({
     to: input.customerEmail,
     customerName: input.customerName,
     businessName: input.businessName,
     serviceType: input.serviceType,
     tempPassword,
-  })
+  }).catch((err) => console.error('[Email] sendWelcome failed:', err))
 
   return { orderId: order.id, customerId }
 }

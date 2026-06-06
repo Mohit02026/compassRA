@@ -18,6 +18,15 @@ function SuccessContent() {
     if (!redirectStatus) return // params not yet hydrated — wait for next render
     if (redirectStatus === 'succeeded') {
       setStatus('success')
+      // Confirm payment server-side so GHL push happens regardless of webhook delivery
+      const paymentIntentId = params.get('payment_intent')
+      if (paymentIntentId) {
+        fetch('/api/public/confirm-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentIntentId }),
+        }).catch((err) => console.error('[confirm-payment]', err))
+      }
     } else if (redirectStatus === 'processing') {
       setStatus('pending')
     } else if (redirectStatus === 'requires_payment_method') {
