@@ -1,24 +1,9 @@
-import path from 'path'
-import { fileURLToPath } from 'url'
-import { createRequire } from 'module'
 import { withSentryConfig } from '@sentry/nextjs'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const _require = createRequire(import.meta.url)
-
-const canonicalNext = path.dirname(_require.resolve('next/package.json'))
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
     instrumentationHook: true,
-  },
-  webpack: (config) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      next: canonicalNext,
-    }
-    return config
   },
 }
 

@@ -79,6 +79,8 @@ export interface SS4Data {
   generatedAt: string
   // Line 1
   legalName: string
+  // Line 2 — trade name / DBA
+  tradeName?: string
   // Line 3 — executor / care of (blank for LLC)
   careOf?: string
   // Lines 4a/4b — mailing address
@@ -93,7 +95,7 @@ export interface SS4Data {
   // Line 7a/7b — responsible party
   responsiblePartyName: string
   taxIdType: 'itin' | 'ssn'
-  // We show the type but NOT the actual SSN/ITIN in this draft for security
+  hasTaxId: boolean            // false when non-US national has no ITIN yet
   // Line 8a/8b/8c — entity
   memberCount: string
   isForeignLLC: boolean
@@ -105,10 +107,20 @@ export interface SS4Data {
   dateStarted: string
   // Line 12 — closing month of accounting year
   closingMonth: string
+  // Line 13 — employees expected (three IRS categories)
+  employeesAgricultural: string
+  employeesHousehold: string
+  employeesOther: string
+  // Line 14 — Form 944 annual filing election
+  wants944: boolean
   // Line 15 — first date wages paid
   firstWagesDate?: string
   // Line 16 — business activity
   businessPurpose: string
+  // Line 17 — principal product/service description
+  productService: string
+  // Line 18 — previously issued EIN?
+  previousEin: boolean
 }
 
 function SS4Document({ data }: { data: SS4Data }) {
@@ -131,6 +143,9 @@ function SS4Document({ data }: { data: SS4Data }) {
         {/* Lines 1–3 */}
         <View style={s.row}>
           <F num="1" label="Legal name of entity (as it appears on charter or other legal document)" value={data.legalName} flex={3} />
+        </View>
+        <View style={s.row}>
+          <F num="2" label="Trade name of business (DBA) — if different from line 1" value={data.tradeName ?? ''} flex={3} />
         </View>
         <View style={s.row}>
           <F num="3" label="Executor, administrator, trustee, 'care of' name" value={data.careOf ?? ''} flex={3} />
@@ -168,7 +183,16 @@ function SS4Document({ data }: { data: SS4Data }) {
         {/* Lines 7a/7b */}
         <View style={s.row}>
           <F num="7a" label="Name of responsible party" value={data.responsiblePartyName} flex={2} />
-          <F num="7b" label="SSN, ITIN, or EIN of responsible party" value={`[${data.taxIdType.toUpperCase()} — see encrypted order data]`} flex={1} />
+          <F
+            num="7b"
+            label="SSN, ITIN, or EIN of responsible party"
+            value={
+              data.hasTaxId
+                ? `[${data.taxIdType.toUpperCase()} — see encrypted order data]`
+                : '[NOT PROVIDED — non-U.S. national, no ITIN yet]'
+            }
+            flex={1}
+          />
         </View>
 
         <View style={s.sectionBreak} />
@@ -193,13 +217,27 @@ function SS4Document({ data }: { data: SS4Data }) {
           <F num="11" label="Date business started or acquired (Mo./Day/Yr.)" value={data.dateStarted} flex={1} />
         </View>
 
-        {/* Lines 12, 15, 16 */}
+        {/* Lines 12–18 */}
         <View style={s.row}>
           <F num="12" label="Closing month of accounting year" value={data.closingMonth} flex={1} />
+        </View>
+        <View style={s.row}>
+          <F num="13a" label="Employees expected — Agricultural" value={data.employeesAgricultural || '0'} flex={1} />
+          <F num="13b" label="Employees expected — Household" value={data.employeesHousehold || '0'} flex={1} />
+          <F num="13c" label="Employees expected — Other" value={data.employeesOther || '0'} flex={1} />
+        </View>
+        <View style={s.row}>
+          <F num="14" label="Do you want to file Form 944 annually instead of Forms 941 quarterly?" value={data.wants944 ? 'Yes' : 'No'} flex={2} />
           <F num="15" label="First date wages or annuities were paid (Mo./Day/Yr.)" value={data.firstWagesDate ?? 'N/A'} flex={1} />
         </View>
         <View style={s.row}>
           <F num="16" label="Check one box that best describes the principal activity of your business" value={data.businessPurpose} flex={3} />
+        </View>
+        <View style={s.row}>
+          <F num="17" label="Principal line of merchandise sold, specific construction work done, products produced, or services provided" value={data.productService} flex={3} />
+        </View>
+        <View style={s.row}>
+          <F num="18" label="Has the applicant entity ever applied for and received an EIN?" value={data.previousEin ? 'Yes' : 'No'} flex={3} />
         </View>
 
         <View style={s.sectionBreak} />

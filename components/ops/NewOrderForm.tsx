@@ -128,15 +128,28 @@ export default function NewOrderForm() {
 
   // EIN fields
   const [einFields, setEinFields] = useState<EinFields>({
+    einTradeName: '',
     einMemberCount: '',
-    einResponsibleParty: '',
+    einResponsiblePartyFirstName: '',
+    einResponsiblePartyMiddleName: '',
+    einResponsiblePartyLastName: '',
+    einResponsiblePartySuffix: '',
     einTaxIdType: 'ssn',
     einTaxId: '',
-    einBusinessPurpose: '',
+    einBusinessActivity: '',
+    einBusinessActivityOther: '',
     einDateStarted: '',
     einReasonApplying: '',
     einIsUSCitizen: true,
     einCounty: '',
+    einClosingMonth: 'December',
+    einEmployeesAgricultural: '0',
+    einEmployeesHousehold: '0',
+    einEmployeesOther: '0',
+    einWants944: false,
+    einFirstWagesDate: '',
+    einProductService: '',
+    einPreviousEin: false,
   })
 
   function addMember() {
@@ -188,7 +201,19 @@ export default function NewOrderForm() {
               ? form.effectiveDate
               : undefined,
           // EIN extras (only when add-on selected)
-          ...(form.addOnEin ? einFields : {}),
+          ...(form.addOnEin ? {
+            ...einFields,
+            einResponsibleParty: [
+              einFields.einResponsiblePartyFirstName,
+              einFields.einResponsiblePartyMiddleName,
+              einFields.einResponsiblePartyLastName,
+              einFields.einResponsiblePartySuffix,
+            ].filter(Boolean).join(' '),
+            einBusinessPurpose:
+              einFields.einBusinessActivity === 'other'
+                ? (einFields.einBusinessActivityOther ? `Other: ${einFields.einBusinessActivityOther}` : 'Other')
+                : einFields.einBusinessActivity,
+          } : {}),
         }),
       })
 

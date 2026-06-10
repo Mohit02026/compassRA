@@ -40,6 +40,10 @@ const checkoutSchema = z.object({
   // EIN-specific fields (flat — not nested) — encrypted server-side where sensitive
   einMemberCount: z.string().optional(),
   einResponsibleParty: z.string().optional(),
+  einResponsiblePartyFirstName: z.string().optional(),
+  einResponsiblePartyMiddleName: z.string().optional(),
+  einResponsiblePartyLastName: z.string().optional(),
+  einResponsiblePartySuffix: z.string().optional(),
   einTaxIdType: z.string().optional(),
   einTaxId: z.string().optional(),
   einBusinessPurpose: z.string().optional(),
@@ -47,6 +51,15 @@ const checkoutSchema = z.object({
   einReasonApplying: z.string().optional(),
   einIsUSCitizen: z.boolean().optional(),
   einCounty: z.string().optional(),
+  einTradeName: z.string().optional(),
+  einClosingMonth: z.string().optional(),
+  einEmployeesAgricultural: z.string().optional(),
+  einEmployeesHousehold: z.string().optional(),
+  einEmployeesOther: z.string().optional(),
+  einWants944: z.boolean().optional(),
+  einFirstWagesDate: z.string().optional(),
+  einProductService: z.string().optional(),
+  einPreviousEin: z.boolean().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -115,6 +128,10 @@ export async function POST(req: NextRequest) {
       organizerName: data.organizerName ?? data.customerName,
       einMemberCount: data.einMemberCount,
       einResponsibleParty: data.einResponsibleParty,
+      einResponsiblePartyFirstName: data.einResponsiblePartyFirstName,
+      einResponsiblePartyMiddleName: data.einResponsiblePartyMiddleName,
+      einResponsiblePartyLastName: data.einResponsiblePartyLastName,
+      einResponsiblePartySuffix: data.einResponsiblePartySuffix,
       einTaxIdType: data.einTaxIdType,
       einTaxId: data.einTaxId,
       einBusinessPurpose: data.einBusinessPurpose,
@@ -122,6 +139,15 @@ export async function POST(req: NextRequest) {
       einReasonApplying: data.einReasonApplying,
       einIsUSCitizen: data.einIsUSCitizen,
       einCounty: data.einCounty,
+      einTradeName: data.einTradeName,
+      einClosingMonth: data.einClosingMonth,
+      einEmployeesAgricultural: data.einEmployeesAgricultural,
+      einEmployeesHousehold: data.einEmployeesHousehold,
+      einEmployeesOther: data.einEmployeesOther,
+      einWants944: data.einWants944,
+      einFirstWagesDate: data.einFirstWagesDate,
+      einProductService: data.einProductService,
+      einPreviousEin: data.einPreviousEin,
     })
 
     // 2. Create Stripe PaymentIntent
