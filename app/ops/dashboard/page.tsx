@@ -83,8 +83,8 @@ export default function OpsDashboard() {
         />
         <KpiCard
           label="In Progress"
-          value={(by.INTAKE ?? 0) + (by.REVIEW ?? 0) + (by.FILED ?? 0)}
-          sub="intake + review + filed"
+          value={(by.INTAKE ?? 0) + (by.DATA_QC ?? 0) + (by.READY_TO_FILE ?? 0) + (by.FILED ?? 0)}
+          sub="intake + in progress + filed"
           icon={<Clock size={20} />}
           iconColor="#f59e0b"
         />

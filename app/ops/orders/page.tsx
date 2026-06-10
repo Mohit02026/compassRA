@@ -6,7 +6,7 @@ import { Search, FileText } from 'lucide-react'
 import { StatusPill } from '@/components/ui/StatusPill'
 import { OrderStatus } from '@prisma/client'
 
-const STATUS_FILTERS = ['All', 'INTAKE', 'REVIEW', 'FILED', 'COMPLETED', 'EXCEPTION'] as const
+const STATUS_FILTERS = ['All', 'INTAKE', 'DATA_QC', 'READY_TO_FILE', 'FILED', 'COMPLETED', 'EXCEPTION'] as const
 type Filter = (typeof STATUS_FILTERS)[number]
 
 interface OrderRow {

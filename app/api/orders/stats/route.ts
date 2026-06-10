@@ -42,7 +42,8 @@ export async function GET() {
       overdue,
       byStatus: {
         INTAKE: byStatus.INTAKE ?? 0,
-        REVIEW: byStatus.REVIEW ?? 0,
+        DATA_QC: byStatus.DATA_QC ?? 0,
+        READY_TO_FILE: byStatus.READY_TO_FILE ?? 0,
         FILED: byStatus.FILED ?? 0,
         COMPLETED: byStatus.COMPLETED ?? 0,
         EXCEPTION: byStatus.EXCEPTION ?? 0,
