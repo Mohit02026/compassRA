@@ -82,15 +82,28 @@ export interface CreateOrderInput {
   flDocNumber?: string
 
   // EIN fields (stored in OrderData, sensitive ones encrypted)
+  einTradeName?: string                  // Line 2 — DBA / trade name
   einMemberCount?: string
-  einResponsibleParty?: string
+  einResponsibleParty?: string           // full name (concatenated)
+  einResponsiblePartyFirstName?: string  // stored separately for IRS wizard copy-paste
+  einResponsiblePartyMiddleName?: string
+  einResponsiblePartyLastName?: string
+  einResponsiblePartySuffix?: string
   einTaxIdType?: string
-  einTaxId?: string          // stored under key 'ssn' or 'itin' depending on einTaxIdType
-  einBusinessPurpose?: string
+  einTaxId?: string           // stored under key 'ssn' or 'itin'; may be empty for non-US without ITIN
+  einBusinessPurpose?: string // Line 16 — IRS category label or "Other: description"
   einDateStarted?: string
   einReasonApplying?: string
   einIsUSCitizen?: boolean
-  einCounty?: string         // SS-4 Line 6 — explicit county (IRS-required, can't derive from city)
+  einCounty?: string          // Line 6 — county (IRS-required, can't derive from city)
+  einClosingMonth?: string              // Line 12 — fiscal year end month
+  einEmployeesAgricultural?: string     // Line 13 — agricultural count
+  einEmployeesHousehold?: string        // Line 13 — household count
+  einEmployeesOther?: string            // Line 13 — other count
+  einWants944?: boolean                 // Line 14 — Form 944 annual filing election
+  einFirstWagesDate?: string            // Line 15 — conditional on any employees
+  einProductService?: string            // Line 17 — principal product/service description
+  einPreviousEin?: boolean              // Line 18 — previously issued EIN?
 }
 
 export interface CreateOrderResult {
@@ -111,9 +124,9 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
 
   const totalAmount = input.serviceFee + input.stateFee
 
-  // 2. Build add-on list
+  // 2. Build add-on list — EIN_FILING orders are the EIN itself, not an add-on
   const addOns: string[] = []
-  if (input.addOnEin) addOns.push('EIN')
+  if (input.addOnEin && input.serviceType !== ServiceType.EIN_FILING) addOns.push('EIN')
   if (input.addOnOperatingAgreement) addOns.push('Operating Agreement')
   if (input.addOnCertificateOfStatus) addOns.push('Certificate of Status')
 
@@ -144,17 +157,32 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
 
   // EIN fields — stored individually for structured access
   if (input.addOnEin) {
-    if (input.einMemberCount) orderDataFields.einMemberCount = input.einMemberCount
-    if (input.einResponsibleParty) orderDataFields.einResponsibleParty = input.einResponsibleParty
-    if (input.einBusinessPurpose) orderDataFields.einBusinessPurpose = input.einBusinessPurpose
-    if (input.einDateStarted) orderDataFields.einDateStarted = input.einDateStarted
-    if (input.einReasonApplying) orderDataFields.einReasonApplying = input.einReasonApplying
+    if (input.einTradeName)                   orderDataFields.einTradeName = input.einTradeName
+    if (input.einMemberCount)                 orderDataFields.einMemberCount = input.einMemberCount
+    if (input.einResponsibleParty)            orderDataFields.einResponsibleParty = input.einResponsibleParty
+    if (input.einResponsiblePartyFirstName)   orderDataFields.einResponsiblePartyFirstName = input.einResponsiblePartyFirstName
+    if (input.einResponsiblePartyMiddleName)  orderDataFields.einResponsiblePartyMiddleName = input.einResponsiblePartyMiddleName
+    if (input.einResponsiblePartyLastName)    orderDataFields.einResponsiblePartyLastName = input.einResponsiblePartyLastName
+    if (input.einResponsiblePartySuffix)      orderDataFields.einResponsiblePartySuffix = input.einResponsiblePartySuffix
+    if (input.einBusinessPurpose)   orderDataFields.einBusinessPurpose = input.einBusinessPurpose
+    if (input.einDateStarted)       orderDataFields.einDateStarted = input.einDateStarted
+    if (input.einReasonApplying)    orderDataFields.einReasonApplying = input.einReasonApplying
+    if (input.einCounty)            orderDataFields.einCounty = input.einCounty
+    if (input.einClosingMonth)               orderDataFields.einClosingMonth = input.einClosingMonth
+    if (input.einEmployeesAgricultural)      orderDataFields.einEmployeesAgricultural = input.einEmployeesAgricultural
+    if (input.einEmployeesHousehold)         orderDataFields.einEmployeesHousehold = input.einEmployeesHousehold
+    if (input.einEmployeesOther)             orderDataFields.einEmployeesOther = input.einEmployeesOther
+    if (input.einWants944 !== undefined)     orderDataFields.einWants944 = String(input.einWants944)
+    if (input.einFirstWagesDate)             orderDataFields.einFirstWagesDate = input.einFirstWagesDate
+    if (input.einProductService)             orderDataFields.einProductService = input.einProductService
+    if (input.einPreviousEin !== undefined)  orderDataFields.einPreviousEin = String(input.einPreviousEin)
     orderDataFields.einIsUSCitizen = String(input.einIsUSCitizen ?? true)
-    // Tax ID stored under 'ssn' or 'itin' — both are SENSITIVE_KEYS
+    // Store taxIdType as a plain key so GHL note can display "SSN" or "ITIN"
+    if (input.einTaxIdType) orderDataFields.einTaxIdType = input.einTaxIdType
+    // Tax ID stored under 'ssn' or 'itin' — both are SENSITIVE_KEYS; optional for non-US nationals
     if (input.einTaxId && input.einTaxIdType) {
       orderDataFields[input.einTaxIdType] = input.einTaxId
     }
-    if (input.einCounty) orderDataFields.einCounty = input.einCounty
   }
 
   // 4. Create order + orderData in a transaction
@@ -235,14 +263,24 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
       principalAddress: input.principalAddress,
       mailingAddress: input.mailingAddress,
       organizerName: input.organizerName ?? input.customerName,
+      einTradeName: input.einTradeName,
       einMemberCount: input.einMemberCount,
       einResponsibleParty: input.einResponsibleParty,
       einTaxIdType: input.einTaxIdType,
+      einTaxId: input.einTaxId,
       einBusinessPurpose: input.einBusinessPurpose,
       einDateStarted: input.einDateStarted,
       einReasonApplying: input.einReasonApplying,
       einIsUSCitizen: input.einIsUSCitizen,
       einCounty: input.einCounty,
+      einClosingMonth: input.einClosingMonth,
+      einEmployeesAgricultural: input.einEmployeesAgricultural,
+      einEmployeesHousehold: input.einEmployeesHousehold,
+      einEmployeesOther: input.einEmployeesOther,
+      einWants944: input.einWants944,
+      einFirstWagesDate: input.einFirstWagesDate,
+      einProductService: input.einProductService,
+      einPreviousEin: input.einPreviousEin,
       members: input.members,
     })
   }
@@ -381,14 +419,24 @@ async function generateAndUploadSS4(params: {
   principalAddress?: string
   mailingAddress?: string
   organizerName?: string
+  einTradeName?: string
   einMemberCount?: string
   einResponsibleParty?: string
   einTaxIdType?: string
+  einTaxId?: string
   einBusinessPurpose?: string
   einDateStarted?: string
   einReasonApplying?: string
   einIsUSCitizen?: boolean
   einCounty?: string
+  einClosingMonth?: string
+  einEmployeesAgricultural?: string
+  einEmployeesHousehold?: string
+  einEmployeesOther?: string
+  einWants944?: boolean
+  einFirstWagesDate?: string
+  einProductService?: string
+  einPreviousEin?: boolean
   members?: Array<{ name: string; ownershipPct: string }>
 }): Promise<void> {
   try {
@@ -404,19 +452,28 @@ async function generateAndUploadSS4(params: {
       orderId: params.order.id,
       generatedAt: new Date().toISOString().split('T')[0],
       legalName: params.businessName,
+      tradeName: params.einTradeName,
       mailingStreet: addr.street || '—',
       mailingCityStateZip: cityStateZip || '—',
       county,
       state: addr.state || 'FL',
       responsiblePartyName: params.einResponsibleParty ?? params.organizerName ?? '—',
       taxIdType: params.einTaxIdType === 'itin' ? 'itin' : 'ssn',
+      hasTaxId: !!(params.einTaxId),
       memberCount,
       isForeignLLC: !(params.einIsUSCitizen ?? true),
       entityType: 'Limited Liability Company (LLC)',
       reasonApplying: params.einReasonApplying ?? 'Started new business',
       dateStarted: params.einDateStarted ?? new Date().toISOString().split('T')[0],
-      closingMonth: 'December',
+      closingMonth: params.einClosingMonth ?? 'December',
+      employeesAgricultural: params.einEmployeesAgricultural ?? '0',
+      employeesHousehold: params.einEmployeesHousehold ?? '0',
+      employeesOther: params.einEmployeesOther ?? '0',
+      wants944: params.einWants944 ?? false,
+      firstWagesDate: params.einFirstWagesDate,
       businessPurpose: params.einBusinessPurpose ?? '—',
+      productService: params.einProductService ?? '—',
+      previousEin: params.einPreviousEin ?? false,
     })
 
     const r2Key = `${params.tenantId}/orders/${params.order.id}/ss4-draft.pdf`

@@ -80,6 +80,7 @@ enum ServiceType {
   ANNUAL_REPORT
   LLC_FORMATION
   RA_TAKEOVER
+  EIN_FILING
 }
 
 enum OrderStatus {

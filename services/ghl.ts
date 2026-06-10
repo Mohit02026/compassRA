@@ -11,6 +11,7 @@ const SERVICE_LABELS: Record<ServiceType, string> = {
   ANNUAL_REPORT: 'Annual Report',
   LLC_FORMATION: 'LLC Formation',
   RA_TAKEOVER:   'RA Takeover',
+  EIN_FILING:    'EIN Filing',
 }
 
 const TIER_LABELS: Record<Tier, string> = {
@@ -47,6 +48,7 @@ export interface OrderNoteData {
   stateFee: string
   totalAmount: number
   // EIN-specific (only present when EIN add-on ordered)
+  einTradeName?: string
   einResponsibleParty?: string
   einTaxIdType?: string
   einBusinessPurpose?: string
@@ -55,6 +57,14 @@ export interface OrderNoteData {
   einIsUSCitizen?: string
   einMemberCount?: string
   einCounty?: string
+  einClosingMonth?: string
+  einEmployeesAgricultural?: string
+  einEmployeesHousehold?: string
+  einEmployeesOther?: string
+  einWants944?: string
+  einFirstWagesDate?: string
+  einProductService?: string
+  einPreviousEin?: string
   // Annual report
   flDocNumber?: string
   // For Bridget to cross-reference Compass portal
@@ -118,14 +128,23 @@ export function buildOrderNote(d: OrderNoteData): string {
   // EIN section
   if (d.einResponsibleParty || d.einBusinessPurpose) {
     lines.push('EIN DETAILS')
+    if (d.einTradeName)        lines.push(`  Trade name (DBA): ${d.einTradeName}`)
     if (d.einResponsibleParty) lines.push(`  Responsible party: ${d.einResponsibleParty}`)
     if (d.einTaxIdType)        lines.push(`  Tax ID type: ${d.einTaxIdType.toUpperCase()} (value encrypted — see Compass)`)
     if (d.einMemberCount)      lines.push(`  Member count: ${d.einMemberCount}`)
-    if (d.einBusinessPurpose)  lines.push(`  Business purpose: ${d.einBusinessPurpose}`)
+    if (d.einBusinessPurpose)  lines.push(`  Business activity: ${d.einBusinessPurpose}`)
     if (d.einDateStarted)      lines.push(`  Date started: ${d.einDateStarted}`)
+    if (d.einClosingMonth)     lines.push(`  Fiscal year end: ${d.einClosingMonth}`)
     if (d.einReasonApplying)   lines.push(`  Reason: ${d.einReasonApplying}`)
     if (d.einCounty)           lines.push(`  County: ${d.einCounty}`)
-    if (d.einIsUSCitizen)      lines.push(`  US citizen/resident: ${d.einIsUSCitizen}`)
+    if (d.einEmployeesAgricultural || d.einEmployeesHousehold || d.einEmployeesOther) {
+      lines.push(`  Employees (Agri/Household/Other): ${d.einEmployeesAgricultural ?? 0}/${d.einEmployeesHousehold ?? 0}/${d.einEmployeesOther ?? 0}`)
+    }
+    if (d.einFirstWagesDate)    lines.push(`  First wages date: ${d.einFirstWagesDate}`)
+    if (d.einWants944)          lines.push(`  Form 944 annual filing: ${d.einWants944}`)
+    if (d.einProductService)    lines.push(`  Product/service (Line 17): ${d.einProductService}`)
+    if (d.einPreviousEin)       lines.push(`  Previously issued EIN: ${d.einPreviousEin}`)
+    if (d.einIsUSCitizen)       lines.push(`  US citizen/resident: ${d.einIsUSCitizen}`)
     lines.push('')
   }
 
@@ -191,14 +210,23 @@ export async function pushOrderToGHL(orderId: string, tenantId: string): Promise
   const membersRaw     = get('members')  // JSON string
 
   // EIN fields
-  const einResponsibleParty = get('einResponsibleParty')
-  const einTaxIdType        = get('einTaxIdType')
-  const einBusinessPurpose  = get('einBusinessPurpose')
-  const einDateStarted      = get('einDateStarted')
-  const einReasonApplying   = get('einReasonApplying')
-  const einIsUSCitizen      = get('einIsUSCitizen')
-  const einMemberCount      = get('einMemberCount')
-  const einCounty           = get('einCounty')
+  const einTradeName         = get('einTradeName')
+  const einResponsibleParty  = get('einResponsibleParty')
+  const einTaxIdType         = get('einTaxIdType')
+  const einBusinessPurpose   = get('einBusinessPurpose')
+  const einDateStarted       = get('einDateStarted')
+  const einReasonApplying    = get('einReasonApplying')
+  const einIsUSCitizen       = get('einIsUSCitizen')
+  const einMemberCount       = get('einMemberCount')
+  const einCounty            = get('einCounty')
+  const einClosingMonth            = get('einClosingMonth')
+  const einEmployeesAgricultural   = get('einEmployeesAgricultural')
+  const einEmployeesHousehold      = get('einEmployeesHousehold')
+  const einEmployeesOther          = get('einEmployeesOther')
+  const einWants944                = get('einWants944')
+  const einFirstWagesDate          = get('einFirstWagesDate')
+  const einProductService          = get('einProductService')
+  const einPreviousEin             = get('einPreviousEin')
 
   const addOns: string[] = addOnsRaw ? addOnsRaw.split(',').map((a) => a.trim()).filter(Boolean) : []
 
@@ -252,7 +280,9 @@ export async function pushOrderToGHL(orderId: string, tenantId: string): Promise
   let filingSheetUrl: string | undefined
   try {
     const preferredType =
-      order.serviceType === 'LLC_FORMATION' ? 'ARTICLES_OF_ORG' : 'FILING_SHEET'
+      order.serviceType === 'LLC_FORMATION' ? 'ARTICLES_OF_ORG'
+      : order.serviceType === 'EIN_FILING'  ? 'SS4_DRAFT'
+      : 'FILING_SHEET'
     const fallbackType = 'FILING_SHEET'
 
     let doc = await prisma.document.findFirst({
@@ -269,9 +299,9 @@ export async function pushOrderToGHL(orderId: string, tenantId: string): Promise
       const pdfBuffer = await downloadFromR2(doc.r2Key)
       if (pdfBuffer.length > 0) {
         const filename =
-          doc.type === 'ARTICLES_OF_ORG'
-            ? `articles-of-org-${shortId}.pdf`
-            : `filing-sheet-${shortId}.pdf`
+          doc.type === 'ARTICLES_OF_ORG' ? `articles-of-org-${shortId}.pdf`
+          : doc.type === 'SS4_DRAFT'     ? `ss4-draft-${shortId}.pdf`
+          : `filing-sheet-${shortId}.pdf`
         const uploaded = await uploadMediaToGHL(pdfBuffer, filename)
         filingSheetUrl = uploaded.url
       }
@@ -301,6 +331,7 @@ export async function pushOrderToGHL(orderId: string, tenantId: string): Promise
     serviceFee,
     stateFee,
     totalAmount: Number(order.totalAmount),
+    einTradeName:        einTradeName || undefined,
     einResponsibleParty: einResponsibleParty || undefined,
     einTaxIdType:        einTaxIdType || undefined,
     einBusinessPurpose:  einBusinessPurpose || undefined,
@@ -309,6 +340,14 @@ export async function pushOrderToGHL(orderId: string, tenantId: string): Promise
     einIsUSCitizen:      einIsUSCitizen || undefined,
     einMemberCount:      einMemberCount || undefined,
     einCounty:           einCounty || undefined,
+    einClosingMonth:           einClosingMonth || undefined,
+    einEmployeesAgricultural:  einEmployeesAgricultural || undefined,
+    einEmployeesHousehold:     einEmployeesHousehold || undefined,
+    einEmployeesOther:         einEmployeesOther || undefined,
+    einWants944:               einWants944 || undefined,
+    einFirstWagesDate:         einFirstWagesDate || undefined,
+    einProductService:         einProductService || undefined,
+    einPreviousEin:            einPreviousEin || undefined,
     flDocNumber:         flDocNumber || undefined,
     compassPortalUrl,
     filingSheetUrl,
