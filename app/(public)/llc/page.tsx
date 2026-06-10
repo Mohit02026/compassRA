@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, Plus, Trash2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 import type { NameAvailability } from '@/services/nameSearch'
 import { LLCDocumentPreview } from '@/components/public/LLCDocumentPreview'
+import { EINAddOnFields, BUSINESS_ACTIVITIES as EIN_BUSINESS_ACTIVITIES, type EINAddOnValues } from '@/components/public/EINAddOnFields'
+import { StyledInput, StyledSelect, Field } from '@/components/public/FormPrimitives'
 
 // Address confirmed via SunBiz (Document # L25000307072)
 const COMPASS_RA_ADDRESS = '625 Court St Ste 100, Clearwater, FL 33756'
@@ -48,6 +50,28 @@ interface FormState {
   addOnEin: boolean
   addOnOperatingAgreement: boolean
   addOnCertificateOfStatus: boolean
+  // EIN add-on fields (only sent when addOnEin is true)
+  einResponsiblePartyFirstName: string
+  einResponsiblePartyMiddleName: string
+  einResponsiblePartyLastName: string
+  einResponsiblePartySuffix: string
+  einTradeName: string
+  einCounty: string
+  einIsUSCitizen: boolean
+  einTaxIdType: 'ssn' | 'itin'
+  einTaxId: string
+  einBusinessActivity: string
+  einBusinessActivityOther: string
+  einDateStarted: string
+  einReasonApplying: string
+  einClosingMonth: string
+  einEmployeesAgricultural: string
+  einEmployeesHousehold: string
+  einEmployeesOther: string
+  einWants944: boolean
+  einFirstWagesDate: string
+  einProductService: string
+  einPreviousEin: boolean
 }
 
 const defaultForm: FormState = {
@@ -74,63 +98,27 @@ const defaultForm: FormState = {
   addOnEin: false,
   addOnOperatingAgreement: false,
   addOnCertificateOfStatus: false,
-}
-
-// ─── shared input style ────────────────────────────────────────────────────────
-const INPUT_STYLE: React.CSSProperties = {
-  width: '100%',
-  border: '1.5px solid oklch(0.88 0.015 245)',
-  borderRadius: 8,
-  padding: '9px 12px',
-  fontSize: 14,
-  outline: 'none',
-  background: 'white',
-  color: 'oklch(0.22 0.06 245)',
-  fontFamily: 'var(--font-dm)',
-  transition: 'border-color 0.15s, box-shadow 0.15s',
-}
-
-function StyledInput(props: React.InputHTMLAttributes<HTMLInputElement> & { extraStyle?: React.CSSProperties }) {
-  const { extraStyle, ...rest } = props
-  return (
-    <input
-      {...rest}
-      style={{ ...INPUT_STYLE, ...extraStyle }}
-      onFocus={(e) => {
-        e.target.style.borderColor = 'oklch(0.56 0.18 250)'
-        e.target.style.boxShadow = '0 0 0 3px oklch(0.56 0.18 250 / 0.12)'
-        props.onFocus?.(e)
-      }}
-      onBlur={(e) => {
-        e.target.style.borderColor = 'oklch(0.88 0.015 245)'
-        e.target.style.boxShadow = 'none'
-        props.onBlur?.(e)
-      }}
-    />
-  )
-}
-
-function StyledSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      style={{ ...INPUT_STYLE, cursor: 'pointer', ...props.style }}
-      onFocus={(e) => {
-        e.target.style.borderColor = 'oklch(0.56 0.18 250)'
-        e.target.style.boxShadow = '0 0 0 3px oklch(0.56 0.18 250 / 0.12)'
-        props.onFocus?.(e)
-      }}
-      onBlur={(e) => {
-        e.target.style.borderColor = 'oklch(0.88 0.015 245)'
-        e.target.style.boxShadow = 'none'
-        props.onBlur?.(e)
-      }}
-    />
-  )
-}
-
-function inputCls(extra = '') {
-  return `w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-all ${extra}`
+  einResponsiblePartyFirstName: '',
+  einResponsiblePartyMiddleName: '',
+  einResponsiblePartyLastName: '',
+  einResponsiblePartySuffix: '',
+  einTradeName: '',
+  einCounty: '',
+  einIsUSCitizen: true,
+  einTaxIdType: 'ssn',
+  einTaxId: '',
+  einBusinessActivity: '',
+  einBusinessActivityOther: '',
+  einDateStarted: '',
+  einReasonApplying: 'new-business',
+  einClosingMonth: 'December',
+  einEmployeesAgricultural: '0',
+  einEmployeesHousehold: '0',
+  einEmployeesOther: '0',
+  einWants944: false,
+  einFirstWagesDate: '',
+  einProductService: '',
+  einPreviousEin: false,
 }
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -161,27 +149,6 @@ function SectionCard({ title, children }: { title: string; children: React.React
           {title}
         </h2>
       </div>
-      {children}
-    </div>
-  )
-}
-
-function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
-  return (
-    <div>
-      <label
-        style={{
-          display: 'block',
-          fontSize: 13,
-          fontWeight: 500,
-          fontFamily: 'var(--font-jakarta)',
-          color: 'oklch(0.34 0.06 245)',
-          marginBottom: 6,
-        }}
-      >
-        {label}
-        {required && <span style={{ color: 'oklch(0.55 0.18 25)', marginLeft: 2 }}>*</span>}
-      </label>
       {children}
     </div>
   )
@@ -301,6 +268,21 @@ function LLCFormationForm() {
     setNameCheck(null)
   }, [form.businessName])
 
+  // Pre-populate responsible party name from contactName when EIN add-on is checked
+  useEffect(() => {
+    if (!form.addOnEin) return
+    if (form.einResponsiblePartyFirstName || form.einResponsiblePartyLastName) return
+    const parts = form.contactName.trim().split(/\s+/).filter(Boolean)
+    if (parts.length === 0) return
+    setForm((prev) => ({
+      ...prev,
+      einResponsiblePartyFirstName: parts[0],
+      einResponsiblePartyMiddleName: parts.length > 2 ? parts.slice(1, -1).join(' ') : '',
+      einResponsiblePartyLastName: parts.length > 1 ? parts[parts.length - 1] : '',
+    }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.addOnEin])
+
   async function checkName() {
     if (!form.businessName.trim()) return
     setNameCheck({ available: 'unknown', checking: true })
@@ -355,6 +337,37 @@ function LLCFormationForm() {
       addOnEin: form.addOnEin,
       addOnOperatingAgreement: form.addOnOperatingAgreement,
       addOnCertificateOfStatus: form.addOnCertificateOfStatus,
+      ...(form.addOnEin && {
+        einMemberCount: String(form.members.length),
+        einResponsibleParty: [
+          form.einResponsiblePartyFirstName,
+          form.einResponsiblePartyMiddleName,
+          form.einResponsiblePartyLastName,
+          form.einResponsiblePartySuffix,
+        ].filter(Boolean).join(' '),
+        einResponsiblePartyFirstName: form.einResponsiblePartyFirstName,
+        einResponsiblePartyMiddleName: form.einResponsiblePartyMiddleName,
+        einResponsiblePartyLastName: form.einResponsiblePartyLastName,
+        einResponsiblePartySuffix: form.einResponsiblePartySuffix,
+        einTradeName: form.einTradeName,
+        einTaxIdType: form.einTaxIdType,
+        einTaxId: form.einTaxId,
+        einBusinessPurpose: form.einBusinessActivity === 'other'
+          ? (form.einBusinessActivityOther || 'Other')
+          : (EIN_BUSINESS_ACTIVITIES.find((a) => a.value === form.einBusinessActivity)?.label ?? form.einBusinessActivity),
+        einDateStarted: form.einDateStarted,
+        einReasonApplying: form.einReasonApplying,
+        einIsUSCitizen: form.einIsUSCitizen,
+        einCounty: form.einCounty,
+        einClosingMonth: form.einClosingMonth,
+        einEmployeesAgricultural: form.einEmployeesAgricultural,
+        einEmployeesHousehold: form.einEmployeesHousehold,
+        einEmployeesOther: form.einEmployeesOther,
+        einWants944: form.einWants944,
+        einFirstWagesDate: form.einFirstWagesDate,
+        einProductService: form.einProductService,
+        einPreviousEin: form.einPreviousEin,
+      }),
       management: form.management,
       effectiveType: form.effectiveType,
       effectiveDate: form.effectiveDate || undefined,
@@ -815,6 +828,34 @@ function LLCFormationForm() {
                 checked={form.addOnEin}
                 onChange={(v) => set('addOnEin', v)}
               />
+              {form.addOnEin && (
+                <EINAddOnFields
+                  values={{
+                    einResponsiblePartyFirstName: form.einResponsiblePartyFirstName,
+                    einResponsiblePartyMiddleName: form.einResponsiblePartyMiddleName,
+                    einResponsiblePartyLastName: form.einResponsiblePartyLastName,
+                    einResponsiblePartySuffix: form.einResponsiblePartySuffix,
+                    einTradeName: form.einTradeName,
+                    einCounty: form.einCounty,
+                    einIsUSCitizen: form.einIsUSCitizen,
+                    einTaxIdType: form.einTaxIdType,
+                    einTaxId: form.einTaxId,
+                    einBusinessActivity: form.einBusinessActivity,
+                    einBusinessActivityOther: form.einBusinessActivityOther,
+                    einDateStarted: form.einDateStarted,
+                    einReasonApplying: form.einReasonApplying,
+                    einClosingMonth: form.einClosingMonth,
+                    einEmployeesAgricultural: form.einEmployeesAgricultural,
+                    einEmployeesHousehold: form.einEmployeesHousehold,
+                    einEmployeesOther: form.einEmployeesOther,
+                    einWants944: form.einWants944,
+                    einFirstWagesDate: form.einFirstWagesDate,
+                    einProductService: form.einProductService,
+                    einPreviousEin: form.einPreviousEin,
+                  }}
+                  onChange={(field, value) => set(field as keyof FormState, value as FormState[keyof FormState])}
+                />
+              )}
               <AddOnRow
                 label="Operating Agreement"
                 description="Documents your LLC's ownership structure and operating rules."

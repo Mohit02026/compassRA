@@ -10,6 +10,7 @@ import {
   FileCheck,
   Building2,
   ArrowLeftRight,
+  Hash,
   ClipboardList,
   FilePen,
   MonitorCheck,
@@ -55,7 +56,18 @@ const fadeUp = {
 
 // ─── Content ───────────────────────────────────────────────────────────────────
 
-const SERVICES = [
+type Service = {
+  icon: React.ElementType
+  hue: number
+  badge: string
+  title: string
+  description: string
+  cta: string
+  href: string
+  comingSoon?: boolean
+}
+
+const SERVICES: Service[] = [
   {
     icon: FileCheck,
     hue: 250,
@@ -77,6 +89,16 @@ const SERVICES = [
     href: '/llc',
   },
   {
+    icon: Hash,
+    hue: 45,
+    badge: 'Standalone',
+    title: 'EIN Filing',
+    description:
+      'Need a federal tax ID without forming a new LLC? We prepare and file your SS-4 directly with the IRS. Flat fee, no surprises.',
+    cta: 'Get your EIN',
+    href: '/ein',
+  },
+  {
     icon: ArrowLeftRight,
     hue: 295,
     badge: 'Full Service',
@@ -85,6 +107,7 @@ const SERVICES = [
       "Already have an LLC? Switch your registered agent to Compass. We handle the paperwork and verify the update on Sunbiz.",
     cta: 'Switch to Compass',
     href: '/login',
+    comingSoon: true,
   },
 ]
 
@@ -932,9 +955,121 @@ function ServicesSection() {
           </h2>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {SERVICES.map((s, i) => {
             const Icon = s.icon
+            const cardInner = (
+              <>
+                <div
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 10,
+                    marginBottom: 14,
+                    background: `oklch(0.29 0.10 ${s.hue})`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    opacity: s.comingSoon ? 0.55 : 1,
+                  }}
+                >
+                  <Icon size={18} style={{ color: `oklch(0.72 0.13 ${s.hue})` }} />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 11 }}>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      fontSize: 10.5,
+                      fontWeight: 600,
+                      padding: '2.5px 10px',
+                      borderRadius: 99,
+                      background: `oklch(0.25 0.08 ${s.hue} / 0.75)`,
+                      color: `oklch(0.74 0.11 ${s.hue})`,
+                      border: `1px solid oklch(0.37 0.09 ${s.hue} / 0.45)`,
+                    }}
+                  >
+                    {s.badge}
+                  </span>
+                  {s.comingSoon && (
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: 99,
+                        background: 'oklch(0.24 0.04 245 / 0.70)',
+                        color: 'oklch(0.52 0.04 245)',
+                        border: '1px solid oklch(0.34 0.04 245 / 0.60)',
+                      }}
+                    >
+                      Coming Soon
+                    </span>
+                  )}
+                </div>
+
+                <h3
+                  style={{
+                    fontFamily: 'var(--font-jakarta)',
+                    fontWeight: 700,
+                    fontSize: 17,
+                    color: s.comingSoon ? 'oklch(0.58 0.05 245)' : 'white',
+                    marginBottom: 9,
+                    lineHeight: 1.25,
+                  }}
+                >
+                  {s.title}
+                </h3>
+
+                <p
+                  style={{
+                    fontSize: 13.5,
+                    lineHeight: 1.68,
+                    color: 'oklch(0.58 0.06 250)',
+                    flexGrow: 1,
+                    marginBottom: 18,
+                  }}
+                >
+                  {s.description}
+                </p>
+
+                {!s.comingSoon && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      fontSize: 13.5,
+                      fontWeight: 600,
+                      fontFamily: 'var(--font-jakarta)',
+                      color: `oklch(0.66 0.14 ${s.hue})`,
+                    }}
+                  >
+                    {s.cta}
+                    <ArrowRight size={13} className="lp-cta-arrow" />
+                  </div>
+                )}
+              </>
+            )
+
+            const cardStyle: React.CSSProperties = {
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: 16,
+              padding: '24px 22px',
+              minHeight: 244,
+              background: 'oklch(0.175 0.065 245 / 0.60)',
+              border: '1px solid oklch(0.27 0.06 245)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              textDecoration: 'none',
+              opacity: s.comingSoon ? 0.55 : 1,
+              cursor: s.comingSoon ? 'default' : undefined,
+              pointerEvents: s.comingSoon ? 'none' : undefined,
+            }
+
             return (
               <motion.div
                 key={s.title}
@@ -944,99 +1079,19 @@ function ServicesSection() {
                 animate={inView ? 'visible' : 'hidden'}
               >
                 <motion.div
-                  whileHover={{ y: -6, borderColor: `oklch(0.44 0.11 ${s.hue})` }}
+                  whileHover={s.comingSoon ? {} : { y: -6, borderColor: `oklch(0.44 0.11 ${s.hue})` }}
                   transition={{ type: 'spring', stiffness: 380, damping: 28 }}
                   style={{ borderRadius: 16, height: '100%' }}
                 >
-                  <Link
-                    href={s.href}
-                    className="lp-service-card-fm"
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      borderRadius: 16,
-                      padding: '24px 22px',
-                      minHeight: 244,
-                      background: 'oklch(0.175 0.065 245 / 0.60)',
-                      border: '1px solid oklch(0.27 0.06 245)',
-                      backdropFilter: 'blur(10px)',
-                      WebkitBackdropFilter: 'blur(10px)',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: 10,
-                        marginBottom: 14,
-                        background: `oklch(0.29 0.10 ${s.hue})`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Icon size={18} style={{ color: `oklch(0.72 0.13 ${s.hue})` }} />
+                  {s.comingSoon ? (
+                    <div className="lp-service-card-fm" style={cardStyle}>
+                      {cardInner}
                     </div>
-
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        alignSelf: 'flex-start',
-                        fontSize: 10.5,
-                        fontWeight: 600,
-                        padding: '2.5px 10px',
-                        borderRadius: 99,
-                        background: `oklch(0.25 0.08 ${s.hue} / 0.75)`,
-                        color: `oklch(0.74 0.11 ${s.hue})`,
-                        border: `1px solid oklch(0.37 0.09 ${s.hue} / 0.45)`,
-                        marginBottom: 11,
-                      }}
-                    >
-                      {s.badge}
-                    </span>
-
-                    <h3
-                      style={{
-                        fontFamily: 'var(--font-jakarta)',
-                        fontWeight: 700,
-                        fontSize: 17,
-                        color: 'white',
-                        marginBottom: 9,
-                        lineHeight: 1.25,
-                      }}
-                    >
-                      {s.title}
-                    </h3>
-
-                    <p
-                      style={{
-                        fontSize: 13.5,
-                        lineHeight: 1.68,
-                        color: 'oklch(0.58 0.06 250)',
-                        flexGrow: 1,
-                        marginBottom: 18,
-                      }}
-                    >
-                      {s.description}
-                    </p>
-
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 5,
-                        fontSize: 13.5,
-                        fontWeight: 600,
-                        fontFamily: 'var(--font-jakarta)',
-                        color: `oklch(0.66 0.14 ${s.hue})`,
-                      }}
-                    >
-                      {s.cta}
-                      <ArrowRight size={13} className="lp-cta-arrow" />
-                    </div>
-                  </Link>
+                  ) : (
+                    <Link href={s.href} className="lp-service-card-fm" style={cardStyle}>
+                      {cardInner}
+                    </Link>
+                  )}
                 </motion.div>
               </motion.div>
             )
