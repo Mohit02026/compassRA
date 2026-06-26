@@ -50,8 +50,8 @@ module.exports = {
 }
 `,
 
-  // DM Sans — weights 400,500
-  'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap': `
+  // DM Sans — weights 400,500,600,700
+  'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap': `
 /* latin */
 @font-face {
   font-family: 'DM Sans';
@@ -68,6 +68,24 @@ module.exports = {
   font-weight: 500;
   font-display: swap;
   src: local('DM Sans Medium'), local('DMSans-Medium');
+  unicode-range: U+0000-00FF;
+}
+/* latin */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: local('DM Sans SemiBold'), local('DMSans-SemiBold');
+  unicode-range: U+0000-00FF;
+}
+/* latin */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('DM Sans Bold'), local('DMSans-Bold');
   unicode-range: U+0000-00FF;
 }
 `,

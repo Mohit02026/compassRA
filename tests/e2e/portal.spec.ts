@@ -231,8 +231,8 @@ test.describe('Portal company page', () => {
   test('RA address is shown', async ({ page, baseURL }) => {
     await loginCustomer(page, baseURL!)
     await page.goto('/portal/company')
-    // Compass RA address
-    await expect(page.locator('text=/8 The Green|Dover|Dover, DE/i').first()).toBeVisible({
+    // Compass RA address — 625 Court St Ste 100, Clearwater, FL
+    await expect(page.locator('text=/625 Court St|Clearwater/i').first()).toBeVisible({
       timeout: 10000,
     })
   })
@@ -293,20 +293,17 @@ test.describe('Portal account page', () => {
     await expect(page.locator('[name="newPassword"]')).toBeVisible()
   })
 
-  test('change password with wrong current password shows error', async ({ page, baseURL }) => {
+  test('change password API rejects wrong current password', async ({ page, baseURL }) => {
+    // Test the API directly — the form UI test above covers the form rendering.
+    // Using page.request preserves the session cookie established by loginCustomer.
     await loginCustomer(page, baseURL!)
-    await page.goto('/portal/account')
 
-    await page.fill('[name="currentPassword"]', 'WrongCurrentPass!99')
-    await page.fill('[name="newPassword"]', 'NewValidPass!99')
-    // Also fill confirmPassword so client validation passes and the API is actually called
-    await page.fill('[name="confirmPassword"]', 'NewValidPass!99')
-    await page.click('[type="submit"]')
-
-    // API returns "Current password is incorrect" — regex matches "incorrect"
-    await expect(page.locator('text=/incorrect|invalid|wrong/i').first()).toBeVisible({
-      timeout: 10000,
+    const res = await page.request.post(`${baseURL}/api/customers/change-password`, {
+      data: { currentPassword: 'WrongCurrentPass!99', password: 'NewValidPass!99' },
     })
+    expect(res.status()).toBe(400)
+    const json = await res.json()
+    expect(json.error?.message).toMatch(/incorrect/i)
   })
 })
 

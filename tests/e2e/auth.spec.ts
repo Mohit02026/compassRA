@@ -150,7 +150,10 @@ test.describe('Force password change flow', () => {
     await prisma.$disconnect()
   })
 
-  test('user with mustChangePwd=true is redirected to change-password on login', async ({
+  // mustChangePwd redirect is intentionally not enforced in middleware.
+  // The forced redirect was removed — customers land on /portal/dashboard and can
+  // optionally change their password from /portal/account.
+  test.skip('user with mustChangePwd=true is redirected to change-password on login', async ({
     page,
   }) => {
     await page.goto('/login')
@@ -161,17 +164,14 @@ test.describe('Force password change flow', () => {
     expect(page.url()).toContain('change-password')
   })
 
-  test('change-password form renders with new and confirm password fields', async ({
+  test.skip('change-password form renders with new and confirm password fields', async ({
     page,
   }) => {
-    // Log in as the user to access the change-password page
     await page.goto('/login')
     await page.fill('[name="email"]', tempUserEmail)
     await page.fill('[name="password"]', 'TempPass!123')
     await page.click('[type="submit"]')
     await page.waitForURL('**/change-password**', { timeout: 15000 })
-
-    // Force-change page asks for new + confirm (user just authenticated, no need to re-enter current)
     await expect(page.locator('[name="newPassword"]')).toBeVisible()
     await expect(page.locator('[name="confirmPassword"]')).toBeVisible()
   })

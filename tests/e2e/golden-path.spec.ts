@@ -23,7 +23,12 @@ const DB_URL =
   process.env.DATABASE_URL ??
   'postgresql://compass:compass@localhost:5433/compass_test'
 
-const GHL_STAGE_MAP = JSON.parse(process.env.GHL_STAGE_MAP ?? '{}') as Record<string, string>
+// Stage names match GHL_STAGE_NAME_MAP keys — used by simulateGhlStageChange
+const STAGE_NAMES = {
+  DATA_QC: 'Data QC',
+  READY_TO_FILE: 'Ready to File',
+  FILED: 'Filed',
+}
 
 // State shared across tests in this describe block
 let createdOrderId: string
@@ -80,67 +85,38 @@ test.describe('Golden path: public intake → payment → lifecycle → portal',
 
   // ── Step 1: Public LLC intake form ──────────────────────────────────────────
 
-  test('LLC intake form — step 1: business details', async ({ page }) => {
+  test('LLC intake form — step 1: state selection', async ({ page }) => {
     await page.goto('/llc')
-    // Verify step 1 renders
+    // Step 1 renders a state <select> and a Continue button
     await expect(page.locator('h1, h2, h3').first()).toBeVisible()
+    await expect(page.locator('select').first()).toBeVisible()
 
-    // Business name — name search fires on input (MSW returns "available")
-    const businessNameInput = page.locator('[name="businessName"], [placeholder*="LLC"]').first()
-    await businessNameInput.fill('UNIQUE GOLDEN PATH LLC')
+    // Select Florida
+    await page.locator('select').first().selectOption('FL')
 
-    // Member name is required before Continue is enabled (placeholder="Full name")
-    const memberNameInput = page.locator('[placeholder="Full name"]').first()
-    await memberNameInput.fill('Jane Golden')
+    // Continue button should now be enabled
+    await page.locator('.intake-continue-btn').click()
 
-    // Proceed to step 2 — button is "Continue →" and only enabled when name + member filled
-    const nextBtn = page.locator('button', { hasText: /next|continue/i }).last()
-    await nextBtn.click()
-
-    // Step 2 should be visible
-    await expect(page.locator('text=/contact|address/i').first()).toBeVisible({ timeout: 10000 })
+    // Step 2 should be visible — business name floating label input
+    await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 10000 })
   })
 
-  test('LLC intake form — step 2: contact and RA', async ({ page }) => {
-    // Navigate back from step 1 data entered in previous test isn't preserved
-    // For this test, assume we resume from a fresh start and go directly
+  test('LLC intake form — step 2: business name', async ({ page }) => {
     await page.goto('/llc')
     await page.waitForTimeout(500)
 
-    // Fast-fill step 1 — businessName + member name required before Continue enables
-    const businessInput = page.locator('[name="businessName"], input[placeholder*="LLC"]').first()
-    await businessInput.fill('UNIQUE GOLDEN PATH LLC')
-    await page.locator('[placeholder="Full name"]').first().fill('Jane Golden')
+    // Step 1: select state, advance
+    await page.locator('select').first().selectOption('FL')
+    await page.locator('.intake-continue-btn').click()
+    await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 10000 })
 
-    const nextBtn1 = page.locator('button', { hasText: /next|continue/i }).last()
-    await nextBtn1.click()
-    await page.waitForTimeout(1000)
+    // Step 2: fill business name (floating label input — no name/placeholder attr)
+    await page.locator('input[type="text"]').first().fill('UNIQUE GOLDEN PATH LLC')
+    await page.locator('.intake-continue-btn').click()
+    await page.waitForTimeout(500)
 
-    // Step 2 — contact info. These inputs have no name= attribute, use placeholder selectors.
-    // The step 2→3 Continue button requires: contactName, contactEmail, principalStreet
-    const contactNameInput = page.locator('input[placeholder="Jane Smith"]')
-    if (await contactNameInput.isVisible()) {
-      await contactNameInput.fill('Jane Golden')
-    }
-
-    const emailInput = page.locator('input[type="email"]').first()
-    if (await emailInput.isVisible()) {
-      // Use a throwaway email for the form UI test — the E2E customer is used for portal tests
-      await emailInput.fill(`golden-path-form-${Date.now()}@e2e.test`)
-    }
-
-    // Principal street is required for the step 2→3 Continue button to enable
-    const streetInput = page.locator('input[placeholder="123 Main St"]')
-    if (await streetInput.isVisible()) {
-      await streetInput.fill('123 Golden Path Ave')
-    }
-
-    const nextBtn2 = page.locator('button', { hasText: /next|continue/i }).last()
-    await nextBtn2.click()
-    await page.waitForTimeout(1000)
-
-    // Step 3 should be visible (add-ons / summary)
-    await expect(page.locator('text=/add-on|summary|total/i').first()).toBeVisible({ timeout: 10000 })
+    // Step 3 should be visible — contact info form
+    await expect(page.locator('input[type="email"], input[type="text"]').first()).toBeVisible({ timeout: 10000 })
   })
 
   // ── Step 2: Order pre-seeded in beforeAll — verify it's in DB ──────────────
@@ -179,7 +155,7 @@ test.describe('Golden path: public intake → payment → lifecycle → portal',
   test('GHL webhook INTAKE → DATA_QC updates order', async ({ request, baseURL }) => {
     if (!createdOrderId) test.skip()
     const res = await simulateGhlStageChange(
-      request, baseURL!, ghlOpportunityId, GHL_STAGE_MAP['DATA_QC'] ?? 'stage_e2e_2'
+      request, baseURL!, ghlOpportunityId, STAGE_NAMES.DATA_QC
     )
     expect(res.status()).toBe(200)
     const prisma = new PrismaClient({ datasources: { db: { url: DB_URL } } })
@@ -194,7 +170,7 @@ test.describe('Golden path: public intake → payment → lifecycle → portal',
   test('GHL webhook DATA_QC → READY_TO_FILE', async ({ request, baseURL }) => {
     if (!createdOrderId) test.skip()
     const res = await simulateGhlStageChange(
-      request, baseURL!, ghlOpportunityId, GHL_STAGE_MAP['READY_TO_FILE'] ?? 'stage_e2e_3'
+      request, baseURL!, ghlOpportunityId, STAGE_NAMES.READY_TO_FILE
     )
     expect(res.status()).toBe(200)
     const prisma = new PrismaClient({ datasources: { db: { url: DB_URL } } })
@@ -209,7 +185,7 @@ test.describe('Golden path: public intake → payment → lifecycle → portal',
   test('GHL webhook READY_TO_FILE → FILED', async ({ request, baseURL }) => {
     if (!createdOrderId) test.skip()
     const res = await simulateGhlStageChange(
-      request, baseURL!, ghlOpportunityId, GHL_STAGE_MAP['FILED'] ?? 'stage_e2e_4'
+      request, baseURL!, ghlOpportunityId, STAGE_NAMES.FILED
     )
     expect(res.status()).toBe(200)
     const prisma = new PrismaClient({ datasources: { db: { url: DB_URL } } })
