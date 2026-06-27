@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { searchName } from '@/services/nameSearch'
+import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 import { z } from 'zod'
 
 const querySchema = z.object({
@@ -7,6 +8,14 @@ const querySchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
+  const limited = await checkRateLimit(`name-search:${getClientIp(req.headers)}`, 30, 60)
+  if (!limited.success) {
+    return NextResponse.json(
+      { error: { code: 429, message: 'Too many requests. Please try again shortly.' } },
+      { status: 429 }
+    )
+  }
+
   const { searchParams } = new URL(req.url)
   const parsed = querySchema.safeParse({ name: searchParams.get('name') ?? '' })
 

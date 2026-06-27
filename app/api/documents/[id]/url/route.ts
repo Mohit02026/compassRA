@@ -44,20 +44,32 @@ export async function GET(_req: NextRequest, { params }: Context) {
   }
 
   try {
+    let url: string
+
     // Drive docs: return the webViewLink directly (already public-readable)
     if (doc.driveFileId && !doc.r2Key) {
-      const url = `https://drive.google.com/file/d/${doc.driveFileId}/view`
-      return NextResponse.json({ data: { url } })
-    }
-
-    if (!doc.r2Key) {
+      url = `https://drive.google.com/file/d/${doc.driveFileId}/view`
+    } else if (doc.r2Key) {
+      url = await getPresignedUrl(doc.r2Key)
+    } else {
       return NextResponse.json(
         { error: { code: 404, message: 'Document has no download source' } },
         { status: 404 }
       )
     }
 
-    const url = await getPresignedUrl(doc.r2Key)
+    // Audit every download — who accessed which document and when
+    await prisma.auditLog.create({
+      data: {
+        tenantId: session.user.tenantId,
+        actorId: session.user.id,
+        entityType: 'Document',
+        entityId: doc.id,
+        action: 'DOCUMENT_DOWNLOADED',
+        meta: { documentType: doc.type, orderId: doc.orderId },
+      },
+    })
+
     return NextResponse.json({ data: { url } })
   } catch (err) {
     console.error('[GET /api/documents/[id]/url]', err)

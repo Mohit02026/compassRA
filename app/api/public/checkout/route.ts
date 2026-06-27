@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createOrder } from '@/services/orders'
 import { stripe } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
+import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 import { ServiceType, Tier } from '@prisma/client'
 
 // Public — no auth. Validates body, creates order, creates Stripe PaymentIntent.
@@ -34,6 +35,18 @@ const checkoutSchema = z.object({
   members: z.array(z.object({ name: z.string(), ownership: z.string().optional() })).optional(),
   organizerName: z.string().optional(),
 
+  // Account password — set by the customer during checkout step 3.
+  // When present, used directly instead of generating a temp password.
+  password: z.string()
+    .min(8)
+    .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
+    .regex(/[0-9]/, 'Must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Must contain at least one special character')
+    .optional(),
+
+  // Annual report — FL document number from SunBiz lookup
+  docNumber: z.string().optional(),
+
   // EIN standalone order — service fee already includes EIN price; skip add-on charge
   einOnly: z.boolean().optional(),
 
@@ -63,6 +76,14 @@ const checkoutSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  const limited = await checkRateLimit(`checkout:${getClientIp(req.headers)}`, 10, 3600)
+  if (!limited.success) {
+    return NextResponse.json(
+      { error: { code: 429, message: 'Too many requests. Please try again later.' } },
+      { status: 429 }
+    )
+  }
+
   // Resolve tenant from DB — no COMPASS_TENANT_ID env var required.
   // Seed guarantees a tenant with slug 'compass' exists before first request.
   const tenant = await prisma.tenant.findUnique({ where: { slug: 'compass' } })
@@ -93,6 +114,37 @@ export async function POST(req: NextRequest) {
   }
 
   const data = parsed.data
+
+  // Deduplication: if a pending order already exists for this email + serviceType,
+  // return the existing PaymentIntent rather than creating a duplicate order + charge.
+  const existingCustomer = await prisma.customer.findFirst({
+    where: { email: data.customerEmail, tenantId, deletedAt: null },
+  })
+  if (existingCustomer) {
+    const existingOrder = await prisma.order.findFirst({
+      where: {
+        customerId: existingCustomer.id,
+        serviceType: data.serviceType,
+        status: { in: ['INTAKE', 'DATA_QC'] },
+        paymentStatus: 'PENDING',
+        deletedAt: null,
+      },
+    })
+    if (existingOrder?.paymentRef) {
+      try {
+        const existingIntent = await stripe().paymentIntents.retrieve(existingOrder.paymentRef)
+        if (existingIntent.client_secret && existingIntent.status === 'requires_payment_method') {
+          return NextResponse.json(
+            { data: { clientSecret: existingIntent.client_secret, orderId: existingOrder.id } },
+            { status: 200 }
+          )
+        }
+      } catch {
+        // Stripe lookup failed — fall through and create a new order
+      }
+    }
+  }
+
   // einOnly: standalone EIN order — serviceFee already covers the EIN price.
   // Don't add the $75 add-on on top; that's for LLC Formation + EIN bundles.
   const totalAmount = data.serviceFee + data.stateFee +
@@ -125,7 +177,9 @@ export async function POST(req: NextRequest) {
       managementType: data.managementType,
       effectiveDate: data.effectiveDate,
       members: data.members?.map((m) => ({ name: m.name, ownershipPct: m.ownership ?? '' })),
+      password: data.password,
       organizerName: data.organizerName ?? data.customerName,
+      flDocNumber: data.docNumber,
       einMemberCount: data.einMemberCount,
       einResponsibleParty: data.einResponsibleParty,
       einResponsiblePartyFirstName: data.einResponsiblePartyFirstName,

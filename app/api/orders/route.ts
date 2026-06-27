@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const status = searchParams.get('status') as OrderStatus | null
   const cursor = searchParams.get('cursor') ?? undefined
-  const limit = parseInt(searchParams.get('limit') ?? '50')
+  const limit = Math.min(parseInt(searchParams.get('limit') ?? '50'), 100)
 
   const result = await listOrders(session.user.tenantId, {
     status: status ?? undefined,

@@ -9,6 +9,8 @@
 //
 // Stage name → OrderStatus driven by GHL_STAGE_NAME_MAP env var.
 // GHL_WEBHOOK_SECRET: optional HMAC-SHA256 signing. Leave empty to skip (dev/test).
+// _ts: optional Unix timestamp (seconds) added by GHL workflow. When present + secret is set,
+//      rejected if older than 5 minutes to prevent replay attacks.
 // Always return 200 — prevents GHL retry storms.
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -48,6 +50,17 @@ function verifySignature(rawBody: string, signature: string | null): boolean {
   return crypto.timingSafeEqual(sigBuf, expBuf)
 }
 
+// Replay attack protection: reject if _ts is present and older than 5 minutes.
+// Add _ts (current Unix timestamp in seconds) to the GHL workflow webhook body to enable this.
+// Skipped when GHL_WEBHOOK_SECRET is not set (dev/test) or when _ts is absent.
+function validateTimestamp(payload: GhlWebhookPayload): boolean {
+  const secret = process.env.GHL_WEBHOOK_SECRET
+  if (!secret || payload._ts === undefined) return true
+
+  const ageMs = Date.now() - payload._ts * 1000
+  return ageMs < 5 * 60 * 1000
+}
+
 // Matches actual GHL "Send Data to Webhook" payload.
 // Field names are GHL's own — including the "pipleline" typo.
 interface GhlWebhookPayload {
@@ -56,6 +69,7 @@ interface GhlWebhookPayload {
   pipeline_id?: string
   email?: string
   full_name?: string
+  _ts?: number             // Unix timestamp (seconds) — add to GHL workflow for replay protection
   [key: string]: unknown
 }
 
@@ -73,6 +87,11 @@ export async function POST(req: NextRequest) {
     payload = JSON.parse(rawBody) as GhlWebhookPayload
   } catch {
     console.error('[GHL webhook] Invalid JSON')
+    return NextResponse.json({ ok: false }, { status: 200 })
+  }
+
+  if (!validateTimestamp(payload)) {
+    console.error('[GHL webhook] Replay attack detected — _ts too old')
     return NextResponse.json({ ok: false }, { status: 200 })
   }
 

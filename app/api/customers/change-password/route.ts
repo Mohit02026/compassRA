@@ -4,9 +4,17 @@ import { prisma } from '@/lib/prisma'
 import { hash, compare } from 'bcryptjs'
 import { z } from 'zod'
 
-// currentPassword is optional — not required for mustChangePwd forced-change flow
+const passwordSchema = z
+  .string()
+  .min(8)
+  .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
+  .regex(/[0-9]/, 'Must contain at least one number')
+  .regex(/[^A-Za-z0-9]/, 'Must contain at least one special character')
+
+// mustChangePwd flow (force-change): currentPassword not required
+// Normal flow: currentPassword is always required
 const schema = z.object({
-  password: z.string().min(8),
+  password: passwordSchema,
   currentPassword: z.string().optional(),
 })
 
@@ -30,8 +38,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: { code: 404, message: 'User not found' } }, { status: 404 })
   }
 
-  // If not a forced change, require current password verification
-  if (!user.mustChangePwd && parsed.data.currentPassword) {
+  // Normal flow: currentPassword is required and must match.
+  // mustChangePwd=true is the force-change flow — no current password needed.
+  if (!user.mustChangePwd) {
+    if (!parsed.data.currentPassword) {
+      return NextResponse.json(
+        { error: { code: 400, message: 'Current password is required' } },
+        { status: 400 }
+      )
+    }
     const valid = await compare(parsed.data.currentPassword, user.passwordHash)
     if (!valid) {
       return NextResponse.json(
