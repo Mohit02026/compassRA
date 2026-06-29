@@ -45,6 +45,10 @@ services:
         echo 'Bucket ready.'
       "
 
+  # Redis is not managed here — use REDIS_URL in .env.local pointing to
+  # any local Redis instance (e.g. redis://localhost:6379).
+  # On Railway, provision a Redis add-on and set REDIS_URL there.
+
 volumes:
   compass_pgdata:
   compass_minio:
