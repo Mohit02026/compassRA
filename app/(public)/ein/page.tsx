@@ -2,190 +2,109 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Lock } from 'lucide-react'
-import { StyledInput, StyledSelect, Field } from '@/components/public/FormPrimitives'
-import { EINDocumentPreview, type EINFormData } from '@/components/public/EINDocumentPreview'
+import { Lock, FileText, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import IntakeLayout from '@/components/public/IntakeLayout'
+import OptionCard from '@/components/public/OptionCard'
+import PanelUSMap from '@/components/public/intake-panels/PanelUSMap'
+import PanelIndustryGauge from '@/components/public/intake-panels/PanelIndustryGauge'
+import PanelCalendar from '@/components/public/intake-panels/PanelCalendar'
+import PanelContactCard from '@/components/public/intake-panels/PanelContactCard'
 
-const PRICE_US = 75
-const PRICE_NON_US = 175
+// ─── Shared design primitives (match LLC wizard exactly) ──────────────────────
 
-// ─── Design primitives ────────────────────────────────────────────────────────
-
-function SectionCard({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+function StepHeading({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <div
-      style={{
-        background: 'white',
-        border: '1px solid oklch(0.90 0.01 245)',
-        borderRadius: 14,
-        padding: '28px 28px 24px',
-        marginBottom: 0,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: hint ? 6 : 20 }}>
-        <div
-          style={{
-            width: 3,
-            height: 15,
-            borderRadius: 2,
-            background: 'linear-gradient(180deg, oklch(0.60 0.20 250) 0%, oklch(0.48 0.18 250) 100%)',
-            flexShrink: 0,
-            boxShadow: '0 1px 5px oklch(0.56 0.18 250 / 0.22)',
-          }}
-        />
-        <h2
-          style={{
-            fontFamily: 'var(--font-jakarta)',
-            fontWeight: 700,
-            fontSize: 15,
-            color: 'oklch(0.26 0.07 245)',
-            letterSpacing: '-0.01em',
-            margin: 0,
-          }}
-        >
-          {title}
-        </h2>
-      </div>
-      {hint && (
-        <p style={{ fontSize: 13, color: 'oklch(0.56 0.05 245)', lineHeight: 1.55, marginBottom: 20 }}>
-          {hint}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32, marginBottom: 40 }}>
+      <h1 style={{ fontSize: 48, fontWeight: 600, color: 'rgb(23, 23, 23)', lineHeight: 1, letterSpacing: '-0.02em', margin: 0, fontFamily: 'var(--font-dm-sans)' }}>
+        {title}
+      </h1>
+      {subtitle && (
+        <p style={{ fontSize: 16, fontWeight: 400, color: 'rgb(76, 76, 76)', lineHeight: 1.13, fontFamily: 'var(--font-dm-sans)', margin: 0 }}>
+          {subtitle}
         </p>
       )}
+    </div>
+  )
+}
+
+function FormCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ background: '#ffffff', borderRadius: 24, padding: 32, display: 'flex', flexDirection: 'column', gap: 16 }}>
       {children}
     </div>
   )
 }
 
-function NavButton({
-  onClick,
-  disabled,
-  variant = 'primary',
-  children,
-}: {
-  onClick: () => void
-  disabled?: boolean
-  variant?: 'primary' | 'ghost'
-  children: React.ReactNode
-}) {
-  if (variant === 'ghost') {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          fontSize: 13.5,
-          fontFamily: 'var(--font-jakarta)',
-          fontWeight: 500,
-          color: 'oklch(0.55 0.05 245)',
-          padding: '10px 4px',
-        }}
-      >
-        {children}
-      </button>
-    )
-  }
+function ContinueBtn({ onClick, disabled, label = 'Continue' }: { onClick: () => void; disabled?: boolean; label?: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      className="intake-continue-btn"
       style={{
-        background: disabled
-          ? 'oklch(0.78 0.03 245)'
-          : 'linear-gradient(135deg, oklch(0.26 0.08 245), oklch(0.20 0.07 245))',
-        color: 'white',
-        border: 'none',
-        borderRadius: 10,
-        padding: '11px 28px',
-        fontSize: 14,
-        fontWeight: 600,
-        fontFamily: 'var(--font-jakarta)',
+        width: '100%', padding: '14px 24px', borderRadius: 8,
+        border: disabled ? '1px solid rgba(59,96,243,0.2)' : '1px solid rgb(59,96,243)',
+        background: disabled ? 'rgb(248,249,252)' : 'rgb(59,96,243)',
+        color: disabled ? 'rgba(59,96,243,0.45)' : 'rgb(255,255,255)',
+        fontSize: 16, fontWeight: 600, lineHeight: 1, fontFamily: 'var(--font-dm-sans)',
         cursor: disabled ? 'not-allowed' : 'pointer',
-        boxShadow: disabled ? 'none' : '0 2px 12px oklch(0.22 0.06 245 / 0.30)',
-        transition: 'opacity 0.15s',
-        letterSpacing: '-0.01em',
+        transition: 'background-color 0.3s, color 0.3s, border-color 0.3s',
       }}
     >
-      {children}
+      {label}
     </button>
   )
 }
 
-function ProgressBar({ step, total, labels }: { step: number; total: number; labels: string[] }) {
+function StyledTextInput({ value, onChange, placeholder, type = 'text', label, required }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; type?: string; label: string; required?: boolean
+}) {
   return (
-    <div style={{ marginBottom: 32 }}>
-      {/* Step dots */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-        {labels.map((label, i) => {
-          const n = i + 1
-          const done = n < step
-          const active = n === step
-          return (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', flex: i < labels.length - 1 ? 1 : undefined }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-jakarta)',
-                    background: done
-                      ? 'oklch(0.40 0.15 145)'
-                      : active
-                        ? 'oklch(0.26 0.08 245)'
-                        : 'oklch(0.93 0.01 245)',
-                    color: done || active ? 'white' : 'oklch(0.65 0.04 245)',
-                    transition: 'all 0.25s',
-                    flexShrink: 0,
-                  }}
-                >
-                  {done ? '✓' : n}
-                </div>
-                <span
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: active ? 600 : 400,
-                    fontFamily: 'var(--font-jakarta)',
-                    color: active ? 'oklch(0.30 0.07 245)' : 'oklch(0.62 0.04 245)',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {label}
-                </span>
-              </div>
-              {i < labels.length - 1 && (
-                <div
-                  style={{
-                    flex: 1,
-                    height: 2,
-                    marginBottom: 18,
-                    marginLeft: 6,
-                    marginRight: 6,
-                    borderRadius: 99,
-                    background: done
-                      ? 'oklch(0.40 0.15 145)'
-                      : 'oklch(0.91 0.01 245)',
-                    transition: 'background 0.25s',
-                  }}
-                />
-              )}
-            </div>
-          )
-        })}
+    <div style={{ marginBottom: 0 }}>
+      <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgb(60,60,60)', marginBottom: 6, fontFamily: 'var(--font-dm-sans)' }}>
+        {label}{required && ' *'}
+      </label>
+      <input
+        type={type} value={value} onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder} required={required}
+        style={{ width: '100%', padding: '15px 16px', borderRadius: 8, border: '1px solid rgb(224, 224, 224)', fontSize: 16, fontFamily: 'var(--font-dm-sans)', color: 'rgb(23,23,23)', outline: 'none', background: '#ffffff', boxSizing: 'border-box', transition: 'border-color 0.5s ease' }}
+        onFocus={(e) => { e.currentTarget.style.borderColor = '#3b60f3'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,96,243,0.12)' }}
+        onBlur={(e) => { e.currentTarget.style.borderColor = 'rgb(224, 224, 224)'; e.currentTarget.style.boxShadow = 'none' }}
+      />
+    </div>
+  )
+}
+
+function StyledSelectInput({ value, onChange, label, required, children }: {
+  value: string; onChange: (v: string) => void; label: string; required?: boolean; children: React.ReactNode
+}) {
+  return (
+    <div style={{ marginBottom: 0 }}>
+      <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgb(60,60,60)', marginBottom: 6, fontFamily: 'var(--font-dm-sans)' }}>
+        {label}{required && ' *'}
+      </label>
+      <div style={{ position: 'relative' }}>
+        <select
+          value={value} onChange={(e) => onChange(e.target.value)} required={required}
+          style={{ width: '100%', padding: '15px 44px 15px 16px', borderRadius: 8, border: '1px solid rgb(224,224,224)', fontSize: 16, fontFamily: 'var(--font-dm-sans)', color: value ? 'rgb(23,23,23)' : 'rgb(130,130,130)', background: '#ffffff', appearance: 'none', cursor: 'pointer', outline: 'none', boxSizing: 'border-box' }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = '#3b60f3'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,96,243,0.12)' }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'rgb(224,224,224)'; e.currentTarget.style.boxShadow = 'none' }}
+        >
+          {children}
+        </select>
+        <svg style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(100,100,100)" strokeWidth="2">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </div>
     </div>
   )
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+const PRICE_US = 75
+const PRICE_NON_US = 175
 
 type TaxIdType = 'ssn' | 'itin'
 type ApplyReason =
@@ -217,17 +136,58 @@ const MONTHS = [
   'July','August','September','October','November','December',
 ]
 
-const STEP_LABELS = ['Your LLC', 'Business', 'Employees', 'Identity', 'Review']
-
 // ─── Form state ───────────────────────────────────────────────────────────────
 
-interface FormState extends EINFormData {
-  contactEmail: string
+interface SunbizResult {
+  name: string
+  documentNumber: string
+  status: string
+  filingDate: string    // YYYY-MM-DD from SunBiz Daily API
+  county: string
+  mailingStreet: string
+  mailingCity: string
+  mailingState: string
+  mailingZip: string
+  mailingAddress: string // composed single-line for display
+}
+
+interface FormState {
+  llcName: string
+  tradeName: string
+  memberCount: string
+  mailingStreet: string
+  mailingCity: string
+  mailingState: string
+  mailingZip: string
+  county: string
+  responsiblePartyFirstName: string
+  responsiblePartyMiddleName: string
+  responsiblePartyLastName: string
+  responsiblePartySuffix: string
+  taxIdType: TaxIdType
+  taxId: string
+  businessActivity: string
+  businessActivityOther: string
+  businessStartDate: string
   applyReason: ApplyReason
+  closingMonth: string
+  employeesAgricultural: string
+  employeesHousehold: string
+  employeesOther: string
+  wants944: boolean
+  firstWagesDate: string
+  productService: string
+  previousEin: boolean
+  isUsCitizen: boolean
+  contactEmail: string
+  docNumber: string
+  mailingHint: string
 }
 
 const DEFAULT_FORM: FormState = {
   llcName: '',
+  docNumber: '',
+  mailingHint: '',
   tradeName: '',
   memberCount: '1',
   mailingStreet: '',
@@ -257,13 +217,356 @@ const DEFAULT_FORM: FormState = {
   isUsCitizen: true,
 }
 
+// ─── Step components ──────────────────────────────────────────────────────────
+
+function Step1FindLLC({ llcName, tradeName, docNumber, sunbizState, onDocNumber, onLlcName, onTradeName, onLookup, onNext }: {
+  llcName: string; tradeName: string; docNumber: string
+  sunbizState: 'idle' | 'loading' | 'found' | 'not-found' | 'error'
+  onDocNumber: (v: string) => void; onLlcName: (v: string) => void; onTradeName: (v: string) => void
+  onLookup: () => void; onNext: () => void
+}) {
+  const [focused, setFocused] = useState(false)
+  const floated = focused || llcName.length > 0
+  return (
+    <>
+      <StepHeading title="Let's find your Florida LLC" subtitle="Enter your FL document number and we'll pull your details from Sunbiz." />
+      <FormCard>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgb(60,60,60)', marginBottom: 6, fontFamily: 'var(--font-dm-sans)' }}>
+            FL Document Number
+          </label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="text" value={docNumber} onChange={(e) => onDocNumber(e.target.value)} placeholder="L25000307072"
+              style={{ flex: 1, padding: '15px 16px', borderRadius: 8, border: '1px solid rgb(224, 224, 224)', fontSize: 16, fontFamily: 'var(--font-dm-sans)', color: 'rgb(23,23,23)', outline: 'none', background: '#ffffff', boxSizing: 'border-box', transition: 'border-color 0.5s ease' }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = '#3b60f3'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,96,243,0.12)' }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'rgb(224, 224, 224)'; e.currentTarget.style.boxShadow = 'none' }}
+            />
+            <button
+              type="button" onClick={onLookup}
+              disabled={!docNumber.trim() || sunbizState === 'loading'}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '15px 18px', borderRadius: 8, border: '1px solid rgb(59,96,243)', background: 'rgb(248,249,252)', color: 'rgb(59,96,243)', fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-dm-sans)', cursor: 'pointer', whiteSpace: 'nowrap', opacity: (!docNumber.trim() || sunbizState === 'loading') ? 0.4 : 1 }}
+            >
+              {sunbizState === 'loading' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+              {sunbizState === 'loading' ? 'Fetching…' : 'Look up on Sunbiz'}
+            </button>
+          </div>
+          {sunbizState === 'found' && (
+            <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgb(240,253,244)', border: '1px solid rgb(187,247,208)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CheckCircle2 size={15} style={{ color: 'rgb(22,163,74)', flexShrink: 0 }} />
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'rgb(22,101,52)', fontFamily: 'var(--font-dm-sans)', margin: 0 }}>Found — details pre-filled below</p>
+            </div>
+          )}
+          {sunbizState === 'not-found' && (
+            <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgb(254,242,242)', border: '1px solid rgb(254,202,202)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AlertCircle size={15} style={{ color: 'rgb(220,38,38)', flexShrink: 0 }} />
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'rgb(185,28,28)', fontFamily: 'var(--font-dm-sans)', margin: 0 }}>Not found — check the number or fill in manually</p>
+            </div>
+          )}
+          {sunbizState === 'error' && (
+            <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgb(255,251,235)', border: '1px solid rgb(252,211,77)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AlertCircle size={15} style={{ color: 'rgb(146,64,14)', flexShrink: 0 }} />
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'rgb(120,53,15)', fontFamily: 'var(--font-dm-sans)', margin: 0 }}>Sunbiz unavailable — fill in manually</p>
+            </div>
+          )}
+        </div>
+        <div style={{ position: 'relative' }}>
+          <label style={{ position: 'absolute', left: 16, top: floated ? 8 : 17, fontSize: floated ? 11 : 16, fontWeight: 400, color: focused ? 'rgb(59,96,243)' : floated ? 'rgb(120,120,120)' : 'rgb(178,178,178)', fontFamily: 'var(--font-dm-sans)', lineHeight: 1, pointerEvents: 'none', zIndex: 1, backgroundColor: 'rgb(255,255,255)', paddingLeft: 2, paddingRight: 4, transition: 'top 0.3s ease, font-size 0.3s ease, color 0.3s ease' }}>
+            LLC name *
+          </label>
+          <input
+            type="text" value={llcName} onChange={(e) => onLlcName(e.target.value)}
+            style={{ width: '100%', padding: '24px 16px 10px 16px', borderRadius: 8, border: focused ? '1px solid #3b60f3' : '1px solid rgb(224,224,224)', fontSize: 16, fontFamily: 'var(--font-dm-sans)', color: 'rgb(23,23,23)', outline: 'none', background: 'rgb(255,255,255)', boxSizing: 'border-box', boxShadow: focused ? '0 0 0 3px rgba(59,96,243,0.12)' : 'none', transition: 'border-color 0.5s ease, box-shadow 0.3s ease' }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+          />
+        </div>
+        <StyledTextInput label="Trade name / DBA" value={tradeName} onChange={onTradeName} placeholder="Optional — leave blank if same as LLC name" />
+        <ContinueBtn onClick={onNext} disabled={!llcName.trim()} />
+      </FormCard>
+    </>
+  )
+}
+
+function Step2Address({ mailingStreet, mailingCity, mailingState, mailingZip, county, memberCount, mailingHint, onChange, onNext }: {
+  mailingStreet: string; mailingCity: string; mailingState: string; mailingZip: string; county: string; memberCount: string; mailingHint: string;
+  onChange: <K extends keyof FormState>(field: K, value: FormState[K]) => void; onNext: () => void
+}) {
+  const valid = mailingStreet.trim() && mailingCity.trim() && mailingZip.trim() && county.trim()
+  return (
+    <>
+      <StepHeading title="What's the LLC's mailing address?" subtitle="This will appear on the IRS SS-4 form." />
+      <FormCard>
+        {mailingHint && (
+          <div style={{ padding: '10px 14px', background: 'rgb(239,246,255)', border: '1px solid rgb(147,197,253)', borderRadius: 8, fontSize: 13, color: 'rgb(29,78,216)', fontFamily: 'var(--font-dm-sans)', lineHeight: 1.5 }}>
+            Found on Sunbiz: <strong>{mailingHint}</strong> — confirm or edit below
+          </div>
+        )}
+        <StyledTextInput label="Street Address" value={mailingStreet} onChange={(v) => onChange('mailingStreet', v)} placeholder="123 Main St" required />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px', gap: 12 }}>
+          <StyledTextInput label="City" value={mailingCity} onChange={(v) => onChange('mailingCity', v)} placeholder="Miami" required />
+          <StyledTextInput label="State" value={mailingState} onChange={(v) => onChange('mailingState', v.toUpperCase().slice(0, 2))} placeholder="FL" />
+          <StyledTextInput label="ZIP" value={mailingZip} onChange={(v) => onChange('mailingZip', v.slice(0, 10))} placeholder="33101" required />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <StyledTextInput label="County" value={county} onChange={(v) => onChange('county', v)} placeholder="e.g. Miami-Dade" required />
+          <StyledTextInput label="Number of Members" type="number" value={memberCount} onChange={(v) => onChange('memberCount', v)} />
+        </div>
+        <ContinueBtn onClick={onNext} disabled={!valid} />
+      </FormCard>
+    </>
+  )
+}
+
+function Step3BusinessDetails({ businessStartDate, closingMonth, applyReason, businessActivity, businessActivityOther, productService, onField, step3Valid, onNext }: {
+  businessStartDate: string; closingMonth: string; applyReason: string; businessActivity: string; businessActivityOther: string; productService: string;
+  onField: <K extends keyof FormState>(field: K, value: FormState[K]) => void; step3Valid: boolean; onNext: () => void
+}) {
+  return (
+    <>
+      <StepHeading title="Tell us about the business" subtitle="These answers go directly onto your SS-4 form." />
+      <FormCard>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <StyledTextInput label="Date business started" type="date" value={businessStartDate} onChange={(v) => onField('businessStartDate', v)} required />
+          <StyledSelectInput label="Fiscal year end" value={closingMonth} onChange={(v) => onField('closingMonth', v)}>
+            {MONTHS.map((m) => <option key={m} value={m}>{m}</option>)}
+          </StyledSelectInput>
+        </div>
+        <StyledSelectInput label="Reason for applying" value={applyReason} onChange={(v) => onField('applyReason', v as ApplyReason)} required>
+          <option value="new-business">Started new business</option>
+          <option value="hired-employees">Hired employees</option>
+          <option value="banking">Banking purposes</option>
+          <option value="changed-organization">Changed type of organization</option>
+          <option value="purchased-business">Purchased going business</option>
+          <option value="irs-withholding">IRS withholding regulations</option>
+          <option value="other">Other</option>
+        </StyledSelectInput>
+        <StyledSelectInput label="Principal business activity" value={businessActivity} onChange={(v) => onField('businessActivity', v)} required>
+          <option value="">— Select category —</option>
+          {BUSINESS_ACTIVITIES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+        </StyledSelectInput>
+        {businessActivity === 'other' && (
+          <StyledTextInput label="Describe your business activity" value={businessActivityOther} onChange={(v) => onField('businessActivityOther', v.slice(0, 50))} placeholder="e.g. Online consulting services" required />
+        )}
+        <StyledTextInput label="What does your business make, sell, or do?" value={productService} onChange={(v) => onField('productService', v.slice(0, 50))} placeholder="e.g. Consulting services" required />
+        <ContinueBtn onClick={onNext} disabled={!step3Valid} />
+      </FormCard>
+    </>
+  )
+}
+
+function Step4Employees({ hasEmployees, toggleEmployees, employeesAgricultural, employeesHousehold, employeesOther, firstWagesDate, wants944, previousEin, onField, step4Valid, onNext }: {
+  hasEmployees: boolean | null; toggleEmployees: (yes: boolean) => void;
+  employeesAgricultural: string; employeesHousehold: string; employeesOther: string;
+  firstWagesDate: string; wants944: boolean; previousEin: boolean;
+  onField: <K extends keyof FormState>(field: K, value: FormState[K]) => void; step4Valid: boolean; onNext: () => void
+}) {
+  const hasAnyEmployees = Number(employeesAgricultural) > 0 || Number(employeesHousehold) > 0 || Number(employeesOther) > 0
+  return (
+    <>
+      <StepHeading title="Do you plan to hire employees?" subtitle="This helps the IRS know whether payroll taxes apply." />
+      <FormCard>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <OptionCard selected={hasEmployees === true} onClick={() => toggleEmployees(true)}>Yes</OptionCard>
+          <OptionCard selected={hasEmployees === false} onClick={() => toggleEmployees(false)}>No</OptionCard>
+        </div>
+        {hasEmployees && (
+          <>
+            <p style={{ fontSize: 13, color: 'rgb(80,80,80)', fontFamily: 'var(--font-dm-sans)', margin: 0 }}>
+              Enter expected employees in each category (0 if none apply).
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <StyledTextInput label="Agricultural" type="number" value={employeesAgricultural} onChange={(v) => onField('employeesAgricultural', v)} placeholder="0" />
+              <StyledTextInput label="Household" type="number" value={employeesHousehold} onChange={(v) => onField('employeesHousehold', v)} placeholder="0" />
+              <StyledTextInput label="Other" type="number" value={employeesOther} onChange={(v) => onField('employeesOther', v)} placeholder="0" />
+            </div>
+            {hasAnyEmployees && (
+              <StyledTextInput label="First date wages will be paid" type="date" value={firstWagesDate} onChange={(v) => onField('firstWagesDate', v)} required />
+            )}
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+              <input type="checkbox" checked={wants944} onChange={(e) => onField('wants944', e.target.checked)} style={{ marginTop: 3 }} />
+              <span style={{ fontSize: 14, color: 'rgb(60,60,60)', fontFamily: 'var(--font-dm-sans)', lineHeight: 1.5 }}>
+                File employment taxes annually (Form 944) — for annual payroll tax liability ≤ $1,000
+              </span>
+            </label>
+          </>
+        )}
+        <div style={{ borderTop: '1px solid rgb(230,230,230)', paddingTop: 16 }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+            <input type="checkbox" checked={previousEin} onChange={(e) => onField('previousEin', e.target.checked)} style={{ marginTop: 3 }} />
+            <span style={{ fontSize: 14, color: 'rgb(60,60,60)', fontFamily: 'var(--font-dm-sans)', lineHeight: 1.5 }}>
+              This entity previously had an EIN (cancelled or abandoned)
+            </span>
+          </label>
+        </div>
+        <ContinueBtn onClick={onNext} disabled={!step4Valid} />
+      </FormCard>
+    </>
+  )
+}
+
+function Step5Identity({ responsiblePartyFirstName, responsiblePartyMiddleName, responsiblePartyLastName, responsiblePartySuffix, contactEmail, isUsCitizen, taxIdType, taxId, onField, step5Valid, onNext }: {
+  responsiblePartyFirstName: string; responsiblePartyMiddleName: string; responsiblePartyLastName: string; responsiblePartySuffix: string;
+  contactEmail: string; isUsCitizen: boolean; taxIdType: TaxIdType; taxId: string;
+  onField: <K extends keyof FormState>(field: K, value: FormState[K]) => void; step5Valid: boolean; onNext: () => void
+}) {
+  return (
+    <>
+      <StepHeading title="Who is the responsible party?" subtitle="The person who controls or manages the LLC. Required by the IRS." />
+      <FormCard>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <StyledTextInput label="First Name" value={responsiblePartyFirstName} onChange={(v) => onField('responsiblePartyFirstName', v)} placeholder="Jane" required />
+          <StyledTextInput label="Last Name" value={responsiblePartyLastName} onChange={(v) => onField('responsiblePartyLastName', v)} placeholder="Smith" required />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <StyledTextInput label="Middle Name / Initial" value={responsiblePartyMiddleName} onChange={(v) => onField('responsiblePartyMiddleName', v)} placeholder="Optional" />
+          <StyledSelectInput label="Suffix" value={responsiblePartySuffix} onChange={(v) => onField('responsiblePartySuffix', v)}>
+            <option value="">None</option>
+            <option value="Jr.">Jr.</option>
+            <option value="Sr.">Sr.</option>
+            <option value="II">II</option>
+            <option value="III">III</option>
+            <option value="IV">IV</option>
+          </StyledSelectInput>
+        </div>
+        <StyledTextInput label="Email" type="email" value={contactEmail} onChange={(v) => onField('contactEmail', v)} placeholder="jane@example.com" required />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+            <input type="checkbox" checked={isUsCitizen} onChange={(e) => onField('isUsCitizen', e.target.checked)} style={{ marginTop: 3, flexShrink: 0 }} />
+            <span style={{ fontSize: 14, color: 'rgb(60,60,60)', fontFamily: 'var(--font-dm-sans)', lineHeight: 1.5 }}>
+              I am a U.S. citizen or permanent resident
+            </span>
+          </label>
+          {!isUsCitizen && (
+            <div style={{ background: 'rgb(255,251,235)', border: '1px solid rgb(252,211,77)', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: 'rgb(146,64,14)', lineHeight: 1.55 }}>
+              Non-U.S. package: SS-4 faxed directly to the IRS. EIN can be issued without an ITIN. Flat fee $175.
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <StyledSelectInput label="Tax ID type" value={taxIdType} onChange={(v) => onField('taxIdType', v as TaxIdType)}>
+            <option value="ssn">SSN — Social Security Number</option>
+            <option value="itin">ITIN — Individual Taxpayer ID</option>
+          </StyledSelectInput>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgb(60,60,60)', marginBottom: 6, fontFamily: 'var(--font-dm-sans)' }}>
+              {taxIdType === 'ssn' ? 'SSN' : 'ITIN'}{isUsCitizen ? ' *' : ' (optional)'}
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="password" value={taxId} onChange={(e) => onField('taxId', e.target.value)}
+                placeholder={isUsCitizen ? 'XXX-XX-XXXX' : 'Optional'}
+                autoComplete="off"
+                style={{ width: '100%', padding: '15px 40px 15px 16px', borderRadius: 8, border: '1px solid rgb(224,224,224)', fontSize: 16, fontFamily: 'var(--font-dm-sans)', color: 'rgb(23,23,23)', outline: 'none', background: '#ffffff', boxSizing: 'border-box' }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = '#3b60f3'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,96,243,0.12)' }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'rgb(224,224,224)'; e.currentTarget.style.boxShadow = 'none' }}
+              />
+              <Lock size={14} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgb(180,180,180)', pointerEvents: 'none' }} />
+            </div>
+            <p style={{ fontSize: 11, color: 'rgb(150,150,150)', marginTop: 4, fontFamily: 'var(--font-dm-sans)' }}>Encrypted, never stored in plain text</p>
+          </div>
+        </div>
+        <ContinueBtn onClick={onNext} disabled={!step5Valid} label="Review order →" />
+      </FormCard>
+    </>
+  )
+}
+
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  if (!value) return null
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, paddingBottom: 12, borderBottom: '1px solid rgb(245,245,245)' }}>
+      <span style={{ fontSize: 13, color: 'rgb(130,130,130)', fontFamily: 'var(--font-dm-sans)', flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 500, color: 'rgb(30,30,30)', fontFamily: 'var(--font-dm-sans)', textAlign: 'right' }}>{value}</span>
+    </div>
+  )
+}
+
+function Step6Review({ form, hasAnyEmployees, price, onProceed }: {
+  form: FormState; hasAnyEmployees: boolean; price: number; onProceed: () => void
+}) {
+  const responsiblePartyFullName = [form.responsiblePartyFirstName, form.responsiblePartyMiddleName, form.responsiblePartyLastName, form.responsiblePartySuffix].filter(Boolean).join(' ')
+  const mailingAddress = `${form.mailingStreet}, ${form.mailingCity}, ${form.mailingState} ${form.mailingZip}`
+
+  return (
+    <>
+      <StepHeading title="Review your EIN order" />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div style={{ background: '#ffffff', borderRadius: 24, padding: 32 }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'rgb(60,60,60)', marginBottom: 20, fontFamily: 'var(--font-dm-sans)', marginTop: 0 }}>Order Details</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <ReviewRow label="LLC Name" value={form.llcName} />
+            {form.tradeName && <ReviewRow label="Trade Name / DBA" value={form.tradeName} />}
+            <ReviewRow label="Mailing Address" value={mailingAddress} />
+            <ReviewRow label="County" value={form.county} />
+            <ReviewRow label="Members" value={form.memberCount} />
+            <ReviewRow label="Business Start" value={form.businessStartDate} />
+            <ReviewRow label="Fiscal Year End" value={form.closingMonth} />
+            <ReviewRow label="Business Activity" value={form.businessActivity === 'other' ? `Other: ${form.businessActivityOther}` : (BUSINESS_ACTIVITIES.find((a) => a.value === form.businessActivity)?.label ?? '')} />
+            <ReviewRow label="Product / Service" value={form.productService} />
+            <ReviewRow label="Reason" value={form.applyReason.replace(/-/g, ' ')} />
+            <ReviewRow label="Employees" value={hasAnyEmployees ? `${form.employeesAgricultural} ag / ${form.employeesHousehold} household / ${form.employeesOther} other` : 'None'} />
+            {form.previousEin && <ReviewRow label="Previously had EIN" value="Yes" />}
+            <ReviewRow label="Responsible Party" value={responsiblePartyFullName} />
+            <ReviewRow label="Email" value={form.contactEmail} />
+            <ReviewRow label="Tax ID" value={form.taxId ? form.taxIdType.toUpperCase() + ' provided' : 'Not provided'} />
+            <ReviewRow label="U.S. Citizen / Resident" value={form.isUsCitizen ? 'Yes' : 'No — SS-4 fax package'} />
+          </div>
+        </div>
+        <div style={{ background: '#ffffff', borderRadius: 24, padding: 32, display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'rgb(60,60,60)', marginBottom: 4, fontFamily: 'var(--font-dm-sans)', marginTop: 0 }}>Price</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, color: 'rgb(80,80,80)', fontFamily: 'var(--font-dm-sans)' }}>
+            <span>{form.isUsCitizen ? 'EIN filing' : 'EIN filing — non-U.S. package'}</span>
+            <span>${price.toFixed(2)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 20, fontWeight: 700, paddingTop: 16, borderTop: '1px solid rgb(230,230,230)', fontFamily: 'var(--font-dm-sans)' }}>
+            <span style={{ color: 'rgb(23,23,23)' }}>Total</span>
+            <span style={{ color: 'rgb(59,96,243)' }}>${price.toFixed(2)}</span>
+          </div>
+          <p style={{ fontSize: 12, color: 'rgb(150,150,150)', fontFamily: 'var(--font-dm-sans)', margin: 0 }}>No auto-renewals. SSN/ITIN encrypted in transit and at rest.</p>
+          <ContinueBtn onClick={onProceed} label="Proceed to Payment →" />
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
+
 
 export default function EINPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
-  const [hasEmployees, setHasEmployees] = useState(false)
+  const [hasEmployees, setHasEmployees] = useState<boolean | null>(null)
   const [form, setForm] = useState<FormState>(DEFAULT_FORM)
+  const [sunbizState, setSunbizState] = useState<'idle' | 'loading' | 'found' | 'not-found' | 'error'>('idle')
+
+  async function handleLookupOnSunbiz() {
+    if (!form.docNumber.trim()) return
+    setSunbizState('loading')
+    try {
+      const res = await fetch(`/api/sunbiz/lookup?docNumber=${encodeURIComponent(form.docNumber.trim())}`)
+      if (res.status === 503) { setSunbizState('error'); return }
+      if (res.status === 404) { setSunbizState('not-found'); return }
+      if (!res.ok) { setSunbizState('error'); return }
+      const json = await res.json()
+      const entity: SunbizResult = json.data
+      setForm((prev) => ({
+        ...prev,
+        llcName:           entity.name          || prev.llcName,
+        businessStartDate: entity.filingDate     || prev.businessStartDate,
+        mailingStreet:     entity.mailingStreet  || prev.mailingStreet,
+        mailingCity:       entity.mailingCity    || prev.mailingCity,
+        mailingState:      entity.mailingState   || prev.mailingState,
+        mailingZip:        entity.mailingZip     || prev.mailingZip,
+        county:            entity.county         || prev.county,
+        mailingHint:       entity.mailingAddress || '',
+      }))
+      setSunbizState('found')
+    } catch {
+      setSunbizState('error')
+    }
+  }
 
   const price = form.isUsCitizen ? PRICE_US : PRICE_NON_US
 
@@ -288,26 +591,21 @@ export default function EINPage() {
     Number(form.employeesOther) > 0
 
   // Per-step validation
-  const step1Valid =
-    form.llcName.trim() &&
-    form.mailingStreet.trim() &&
-    form.mailingCity.trim() &&
-    form.mailingZip.trim() &&
-    form.county.trim()
-
-  const step2Valid =
+  const step1Valid = form.llcName.trim().length > 0
+  const step2Valid = !!(form.mailingStreet.trim() && form.mailingCity.trim() && form.mailingZip.trim() && form.county.trim())
+  const step3Valid = !!(
     form.businessActivity &&
     (form.businessActivity !== 'other' || form.businessActivityOther.trim()) &&
     form.businessStartDate &&
     form.productService.trim()
-
-  const step3Valid = !hasAnyEmployees || form.firstWagesDate
-
-  const step4Valid =
+  )
+  const step4Valid = hasEmployees !== null && (!hasAnyEmployees || !!form.firstWagesDate)
+  const step5Valid = !!(
     form.responsiblePartyFirstName.trim() &&
     form.responsiblePartyLastName.trim() &&
     form.contactEmail.trim() &&
     (!form.isUsCitizen || form.taxId.trim())
+  )
 
   function handleProceedToCheckout() {
     const mailingAddress = `${form.mailingStreet}, ${form.mailingCity}, ${form.mailingState} ${form.mailingZip}`
@@ -325,11 +623,19 @@ export default function EINPage() {
     const payload = {
       serviceType: 'EIN_FILING',
       tier: 'STANDARD',
+      sourceHref: '/ein',
       businessName: form.llcName,
+      docNumber: form.docNumber || undefined,
       customerName: responsiblePartyFullName,
       customerEmail: form.contactEmail,
       serviceFee: price,
       stateFee: 0,
+      // Structured address — checkout biz section reads these to pre-fill and auto-skip
+      ownerStreet:  form.mailingStreet,
+      ownerCity:    form.mailingCity,
+      ownerState:   form.mailingState,
+      ownerZip:     form.mailingZip,
+      ownerMailing: mailingAddress,
       principalAddress: mailingAddress,
       mailingAddress,
       einOnly: true,
@@ -372,738 +678,100 @@ export default function EINPage() {
     router.push('/checkout')
   }
 
-  const previewForm: EINFormData = {
-    llcName: form.llcName,
-    tradeName: form.tradeName,
-    memberCount: form.memberCount,
-    mailingStreet: form.mailingStreet,
-    mailingCity: form.mailingCity,
-    mailingState: form.mailingState,
-    mailingZip: form.mailingZip,
-    county: form.county,
-    responsiblePartyFirstName: form.responsiblePartyFirstName,
-    responsiblePartyMiddleName: form.responsiblePartyMiddleName,
-    responsiblePartyLastName: form.responsiblePartyLastName,
-    responsiblePartySuffix: form.responsiblePartySuffix,
-    taxIdType: form.taxIdType,
-    taxId: form.taxId,
-    businessActivity: form.businessActivity,
-    businessActivityOther: form.businessActivityOther,
-    businessStartDate: form.businessStartDate,
-    applyReason: form.applyReason,
-    closingMonth: form.closingMonth,
-    employeesAgricultural: form.employeesAgricultural,
-    employeesHousehold: form.employeesHousehold,
-    employeesOther: form.employeesOther,
-    wants944: form.wants944,
-    firstWagesDate: form.firstWagesDate,
-    productService: form.productService,
-    previousEin: form.previousEin,
-    isUsCitizen: form.isUsCitizen,
+  const rightPanels: Partial<Record<number, React.ReactNode>> = {
+    1: <PanelUSMap selectedState="FL" />,
+    2: <PanelUSMap selectedState="FL" />,
+    3: <PanelIndustryGauge industry={form.businessActivity} />,
+    4: <PanelCalendar timeline="active" />,
+    5: <PanelContactCard firstName={form.responsiblePartyFirstName} lastName={form.responsiblePartyLastName} email={form.contactEmail} phone="" />,
   }
-
-  // Shared TOGGLE_BASE style (for employees Yes/No)
-  const TOGGLE_BASE: React.CSSProperties = {
-    padding: '8px 22px',
-    borderRadius: 9,
-    fontSize: 13.5,
-    fontWeight: 600,
-    fontFamily: 'var(--font-jakarta)',
-    cursor: 'pointer',
-    border: '1.5px solid',
-    transition: 'all 0.15s',
-  }
-
-  function activeToggle(active: boolean): React.CSSProperties {
-    return {
-      ...TOGGLE_BASE,
-      background: active
-        ? 'linear-gradient(135deg, oklch(0.26 0.08 245), oklch(0.20 0.07 245))'
-        : 'rgba(255,255,255,0.85)',
-      color: active ? 'white' : 'oklch(0.44 0.06 245)',
-      borderColor: active ? 'transparent' : 'oklch(0.86 0.015 245)',
-      boxShadow: active
-        ? '0 2px 10px oklch(0.22 0.06 245 / 0.28)'
-        : '0 1px 3px oklch(0.22 0.06 245 / 0.06)',
-    }
-  }
+  const rightPanel = rightPanels[step]
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'oklch(0.97 0.005 240)',
-        fontFamily: 'var(--font-dm)',
-        paddingBottom: 80,
-      }}
+    <IntakeLayout
+      onBack={step > 1 ? () => setStep((s) => s - 1) : undefined}
+      backHref={step === 1 ? '/' : undefined}
+      rightPanel={rightPanel}
+      onClose="/"
+      wide={step === 6}
     >
-      {/* Page header */}
-      <div
-        style={{
-          background: 'white',
-          borderBottom: '1px solid oklch(0.91 0.01 245)',
-          padding: '28px 0 24px',
-          marginBottom: 36,
-        }}
-      >
-        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
-          <h1
-            style={{
-              fontFamily: 'var(--font-jakarta)',
-              fontWeight: 700,
-              fontSize: 22,
-              color: 'oklch(0.26 0.07 245)',
-              letterSpacing: '-0.02em',
-              marginBottom: 4,
-            }}
-          >
-            EIN (Employer Identification Number)
-          </h1>
-          <p style={{ fontSize: 14, color: 'oklch(0.56 0.05 245)', lineHeight: 1.55 }}>
-            Get your LLC&apos;s federal tax ID — required for banking, hiring, and taxes. Flat fee,
-            no surprises.
-          </p>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
-        <ProgressBar step={step} total={5} labels={STEP_LABELS} />
-
-        {/* Two-column layout: form left, SS-4 preview right */}
-        <div
-          className="lg:grid lg:gap-10 lg:items-start"
-          style={{ gridTemplateColumns: '1fr 1fr' }}
-        >
-          {/* ── LEFT: steps ── */}
-          <div>
-
-            {/* ────────────────── STEP 1: Your LLC ────────────────── */}
-            {step === 1 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <SectionCard
-                  title="Your LLC"
-                  hint="Basic details about the business — this goes on the IRS SS-4 form."
-                >
-                  <div className="space-y-5">
-                    <Field label="LLC Name" required>
-                      <StyledInput
-                        value={form.llcName}
-                        onChange={(e) => set('llcName', e.target.value)}
-                        placeholder="Sunshine Ventures LLC"
-                      />
-                    </Field>
-
-                    <Field label="Trade Name / DBA" hint="Leave blank if the same as your LLC name">
-                      <StyledInput
-                        value={form.tradeName}
-                        onChange={(e) => set('tradeName', e.target.value)}
-                        placeholder="Optional"
-                      />
-                    </Field>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <Field label="Number of Members" required>
-                        <StyledInput
-                          type="number"
-                          min="1"
-                          value={form.memberCount}
-                          onChange={(e) => set('memberCount', e.target.value)}
-                        />
-                      </Field>
-                      <Field label="County" hint="Where the business operates" required>
-                        <StyledInput
-                          value={form.county}
-                          onChange={(e) => set('county', e.target.value)}
-                          placeholder="e.g. Miami-Dade"
-                        />
-                      </Field>
-                    </div>
-                  </div>
-                </SectionCard>
-
-                <SectionCard title="Mailing Address">
-                  <div className="space-y-5">
-                    <Field label="Street Address" required>
-                      <StyledInput
-                        value={form.mailingStreet}
-                        onChange={(e) => set('mailingStreet', e.target.value)}
-                        placeholder="123 Main St, Suite 200"
-                      />
-                    </Field>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="col-span-1">
-                        <Field label="City" required>
-                          <StyledInput
-                            value={form.mailingCity}
-                            onChange={(e) => set('mailingCity', e.target.value)}
-                            placeholder="Miami"
-                          />
-                        </Field>
-                      </div>
-                      <Field label="State">
-                        <StyledInput
-                          value={form.mailingState}
-                          onChange={(e) =>
-                            set('mailingState', e.target.value.toUpperCase().slice(0, 2))
-                          }
-                          placeholder="FL"
-                          maxLength={2}
-                          style={{ textTransform: 'uppercase' }}
-                        />
-                      </Field>
-                      <Field label="ZIP" required>
-                        <StyledInput
-                          value={form.mailingZip}
-                          onChange={(e) => set('mailingZip', e.target.value.slice(0, 10))}
-                          placeholder="33101"
-                        />
-                      </Field>
-                    </div>
-                  </div>
-                </SectionCard>
-
-                <NavRow
-                  onNext={() => setStep(2)}
-                  nextDisabled={!step1Valid}
-                  nextLabel="Continue →"
-                />
-              </div>
-            )}
-
-            {/* ────────────────── STEP 2: Business ────────────────── */}
-            {step === 2 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <SectionCard
-                  title="About the Business"
-                  hint="Tell the IRS what your LLC does — these answers populate Lines 9, 16, and 17 of the SS-4."
-                >
-                  <div className="space-y-5">
-                    <div className="grid grid-cols-2 gap-4">
-                      <Field label="Date Business Started" required>
-                        <StyledInput
-                          type="date"
-                          value={form.businessStartDate}
-                          onChange={(e) => set('businessStartDate', e.target.value)}
-                        />
-                      </Field>
-                      <Field label="Fiscal Year End" hint="Most LLCs use December">
-                        <StyledSelect
-                          value={form.closingMonth}
-                          onChange={(e) => set('closingMonth', e.target.value)}
-                        >
-                          {MONTHS.map((m) => <option key={m} value={m}>{m}</option>)}
-                        </StyledSelect>
-                      </Field>
-                    </div>
-
-                    <Field label="Reason for Applying" required>
-                      <StyledSelect
-                        value={form.applyReason}
-                        onChange={(e) => set('applyReason', e.target.value as ApplyReason)}
-                      >
-                        <option value="new-business">Started new business</option>
-                        <option value="hired-employees">Hired employees</option>
-                        <option value="banking">Banking purposes</option>
-                        <option value="changed-organization">Changed type of organization</option>
-                        <option value="purchased-business">Purchased going business</option>
-                        <option value="irs-withholding">Compliance with IRS withholding regulations</option>
-                        <option value="other">Other</option>
-                      </StyledSelect>
-                    </Field>
-
-                    <Field label="Principal Business Activity" required>
-                      <StyledSelect
-                        value={form.businessActivity}
-                        onChange={(e) => set('businessActivity', e.target.value)}
-                      >
-                        <option value="">— Select category —</option>
-                        {BUSINESS_ACTIVITIES.map((a) => (
-                          <option key={a.value} value={a.value}>{a.label}</option>
-                        ))}
-                      </StyledSelect>
-                    </Field>
-
-                    {form.businessActivity === 'other' && (
-                      <Field label="Describe your business activity" hint={`${form.businessActivityOther.length}/50 characters`} required>
-                        <StyledInput
-                          value={form.businessActivityOther}
-                          onChange={(e) =>
-                            set('businessActivityOther', e.target.value.slice(0, 50))
-                          }
-                          placeholder="e.g. Online consulting services"
-                          maxLength={50}
-                        />
-                      </Field>
-                    )}
-
-                    <Field
-                      label="What does your business make, sell, or do?"
-                      hint="Plain description — e.g. 'Consulting services for small businesses'"
-                      required
-                    >
-                      <StyledInput
-                        value={form.productService}
-                        onChange={(e) =>
-                          set('productService', e.target.value.slice(0, 50))
-                        }
-                        placeholder="e.g. Consulting services"
-                        maxLength={50}
-                      />
-                    </Field>
-                  </div>
-                </SectionCard>
-
-                <NavRow
-                  onBack={() => setStep(1)}
-                  onNext={() => setStep(3)}
-                  nextDisabled={!step2Valid}
-                  nextLabel="Continue →"
-                />
-              </div>
-            )}
-
-            {/* ────────────────── STEP 3: Employees ────────────────── */}
-            {step === 3 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <SectionCard
-                  title="Employees"
-                  hint="Tell the IRS whether you plan to hire employees in the next 12 months."
-                >
-                  <div className="space-y-5">
-                    <div>
-                      <p style={{ fontSize: 14, color: 'oklch(0.40 0.05 245)', marginBottom: 12, fontFamily: 'var(--font-jakarta)', fontWeight: 500 }}>
-                        Do you plan to hire employees in the next 12 months?
-                      </p>
-                      <div style={{ display: 'flex', gap: 10 }}>
-                        <button type="button" onClick={() => toggleEmployees(true)} style={activeToggle(hasEmployees)}>Yes</button>
-                        <button type="button" onClick={() => toggleEmployees(false)} style={activeToggle(!hasEmployees)}>No</button>
-                      </div>
-                    </div>
-
-                    {hasEmployees && (
-                      <>
-                        <p style={{ fontSize: 13, color: 'oklch(0.56 0.05 245)', lineHeight: 1.55 }}>
-                          Enter the number expected in each category — put 0 for any that don&apos;t apply.
-                        </p>
-                        <div className="grid grid-cols-3 gap-4">
-                          <Field label="Agricultural" hint="Farm / ranch">
-                            <StyledInput
-                              type="number"
-                              min="0"
-                              value={form.employeesAgricultural}
-                              onChange={(e) => set('employeesAgricultural', e.target.value)}
-                              placeholder="0"
-                            />
-                          </Field>
-                          <Field label="Household" hint="Domestic workers">
-                            <StyledInput
-                              type="number"
-                              min="0"
-                              value={form.employeesHousehold}
-                              onChange={(e) => set('employeesHousehold', e.target.value)}
-                              placeholder="0"
-                            />
-                          </Field>
-                          <Field label="Other" hint="All other">
-                            <StyledInput
-                              type="number"
-                              min="0"
-                              value={form.employeesOther}
-                              onChange={(e) => set('employeesOther', e.target.value)}
-                              placeholder="0"
-                            />
-                          </Field>
-                        </div>
-
-                        <Field label="First date wages will be paid" required>
-                          <StyledInput
-                            type="date"
-                            value={form.firstWagesDate}
-                            onChange={(e) => set('firstWagesDate', e.target.value)}
-                          />
-                        </Field>
-
-                        <CheckboxRow
-                          checked={form.wants944}
-                          onChange={(v) => set('wants944', v)}
-                          label="File employment taxes annually (Form 944)"
-                          hint="Instead of quarterly Form 941. Only if annual payroll tax liability is $1,000 or less."
-                        />
-                      </>
-                    )}
-                  </div>
-                </SectionCard>
-
-                <SectionCard title="Previous EIN">
-                  <CheckboxRow
-                    checked={form.previousEin}
-                    onChange={(v) => set('previousEin', v)}
-                    label="This entity previously had an EIN"
-                    hint="Check this if the LLC had a federal tax ID in the past that was cancelled or abandoned."
-                  />
-                </SectionCard>
-
-                <NavRow
-                  onBack={() => setStep(2)}
-                  onNext={() => setStep(4)}
-                  nextDisabled={!step3Valid}
-                  nextLabel="Continue →"
-                />
-              </div>
-            )}
-
-            {/* ────────────────── STEP 4: Identity ────────────────── */}
-            {step === 4 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <SectionCard
-                  title="Responsible Party"
-                  hint="The person who controls, manages, or directs the LLC. The IRS requires the name exactly as filed."
-                >
-                  <div className="space-y-5">
-                    <div className="grid grid-cols-2 gap-4">
-                      <Field label="First Name" required>
-                        <StyledInput
-                          value={form.responsiblePartyFirstName}
-                          onChange={(e) => set('responsiblePartyFirstName', e.target.value)}
-                          placeholder="Jane"
-                        />
-                      </Field>
-                      <Field label="Last Name" required>
-                        <StyledInput
-                          value={form.responsiblePartyLastName}
-                          onChange={(e) => set('responsiblePartyLastName', e.target.value)}
-                          placeholder="Smith"
-                        />
-                      </Field>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="col-span-2">
-                        <Field label="Middle Name / Initial">
-                          <StyledInput
-                            value={form.responsiblePartyMiddleName}
-                            onChange={(e) => set('responsiblePartyMiddleName', e.target.value)}
-                            placeholder="Optional"
-                          />
-                        </Field>
-                      </div>
-                      <Field label="Suffix">
-                        <StyledSelect
-                          value={form.responsiblePartySuffix}
-                          onChange={(e) => set('responsiblePartySuffix', e.target.value)}
-                        >
-                          <option value="">None</option>
-                          <option value="Jr.">Jr.</option>
-                          <option value="Sr.">Sr.</option>
-                          <option value="II">II</option>
-                          <option value="III">III</option>
-                          <option value="IV">IV</option>
-                        </StyledSelect>
-                      </Field>
-                    </div>
-
-                    <Field label="Email" hint="We'll send your portal login here" required>
-                      <StyledInput
-                        type="email"
-                        value={form.contactEmail}
-                        onChange={(e) => set('contactEmail', e.target.value)}
-                        placeholder="jane@example.com"
-                      />
-                    </Field>
-                  </div>
-                </SectionCard>
-
-                <SectionCard title="Citizenship & Tax ID">
-                  <div className="space-y-5">
-                    <CheckboxRow
-                      checked={form.isUsCitizen}
-                      onChange={(v) => set('isUsCitizen', v)}
-                      label="I am a U.S. citizen or permanent resident"
-                      hint={
-                        form.isUsCitizen
-                          ? undefined
-                          : 'Non-U.S. nationals cannot use the IRS online application. We prepare your SS-4 and fax it to the IRS on your behalf — flat fee $175.'
-                      }
-                    />
-
-                    {!form.isUsCitizen && (
-                      <div
-                        style={{
-                          padding: '12px 14px',
-                          borderRadius: 10,
-                          background: 'oklch(0.96 0.05 60)',
-                          border: '1px solid oklch(0.82 0.10 60)',
-                          fontSize: 13,
-                          color: 'oklch(0.50 0.14 60)',
-                          lineHeight: 1.55,
-                        }}
-                      >
-                        Non-U.S. package: SS-4 faxed directly to the IRS. EIN can be issued without
-                        an ITIN — enter one below if you have it, otherwise leave blank.
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <Field label="Tax ID Type">
-                        <StyledSelect
-                          value={form.taxIdType}
-                          onChange={(e) => set('taxIdType', e.target.value as TaxIdType)}
-                        >
-                          <option value="ssn">SSN — Social Security Number</option>
-                          <option value="itin">ITIN — Individual Taxpayer ID</option>
-                        </StyledSelect>
-                      </Field>
-                      <Field
-                        label={form.taxIdType === 'ssn' ? 'SSN' : 'ITIN'}
-                        hint={form.isUsCitizen ? 'Encrypted, never stored in plain text' : 'Optional'}
-                      >
-                        <div style={{ position: 'relative' }}>
-                          <StyledInput
-                            type="password"
-                            value={form.taxId}
-                            onChange={(e) => set('taxId', e.target.value)}
-                            placeholder={form.isUsCitizen ? 'XXX-XX-XXXX' : 'Optional'}
-                            autoComplete="off"
-                            extraStyle={{ paddingRight: 34 }}
-                          />
-                          <Lock
-                            size={13}
-                            style={{
-                              position: 'absolute',
-                              right: 10,
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              color: 'oklch(0.65 0.02 245)',
-                              pointerEvents: 'none',
-                            }}
-                          />
-                        </div>
-                      </Field>
-                    </div>
-                  </div>
-                </SectionCard>
-
-                <NavRow
-                  onBack={() => setStep(3)}
-                  onNext={() => setStep(5)}
-                  nextDisabled={!step4Valid}
-                  nextLabel="Review order →"
-                />
-              </div>
-            )}
-
-            {/* ────────────────── STEP 5: Review ────────────────── */}
-            {step === 5 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <SectionCard title="Order Summary">
-                  <dl style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <SummaryRow label="LLC Name" value={form.llcName} />
-                    {form.tradeName && <SummaryRow label="Trade Name / DBA" value={form.tradeName} />}
-                    <SummaryRow label="Address" value={`${form.mailingStreet}, ${form.mailingCity}, ${form.mailingState} ${form.mailingZip}`} />
-                    <SummaryRow label="County" value={form.county} />
-                    <SummaryRow label="Members" value={form.memberCount} />
-                    <SummaryRow label="Business Start" value={form.businessStartDate} />
-                    <SummaryRow label="Fiscal Year End" value={form.closingMonth} />
-                    <SummaryRow
-                      label="Business Activity"
-                      value={
-                        form.businessActivity === 'other'
-                          ? `Other: ${form.businessActivityOther}`
-                          : BUSINESS_ACTIVITIES.find((a) => a.value === form.businessActivity)?.label ?? ''
-                      }
-                    />
-                    <SummaryRow label="Product / Service" value={form.productService} />
-                    <SummaryRow label="Reason" value={form.applyReason.replace(/-/g, ' ')} />
-                    <SummaryRow
-                      label="Employees"
-                      value={
-                        hasAnyEmployees
-                          ? `${form.employeesAgricultural} ag / ${form.employeesHousehold} household / ${form.employeesOther} other`
-                          : 'None planned'
-                      }
-                    />
-                    {form.wants944 && <SummaryRow label="Form 944 Election" value="Yes — annual filing" />}
-                    {form.previousEin && <SummaryRow label="Previously had EIN" value="Yes" />}
-                    <SummaryRow
-                      label="Responsible Party"
-                      value={[
-                        form.responsiblePartyFirstName,
-                        form.responsiblePartyMiddleName,
-                        form.responsiblePartyLastName,
-                        form.responsiblePartySuffix,
-                      ].filter(Boolean).join(' ')}
-                    />
-                    <SummaryRow label="Email" value={form.contactEmail} />
-                    <SummaryRow
-                      label="Tax ID"
-                      value={form.taxId ? form.taxIdType.toUpperCase() + ' provided' : 'Not provided'}
-                    />
-                    <SummaryRow
-                      label="U.S. Citizen / Resident"
-                      value={form.isUsCitizen ? 'Yes' : 'No — SS-4 fax package'}
-                    />
-                  </dl>
-                </SectionCard>
-
-                <SectionCard title="Price">
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: 'oklch(0.40 0.05 245)' }}>
-                      <span>
-                        {form.isUsCitizen
-                          ? 'EIN filing'
-                          : 'EIN filing — non-U.S. package'}
-                      </span>
-                      <span>${price.toFixed(2)}</span>
-                    </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        fontSize: 15,
-                        fontWeight: 700,
-                        fontFamily: 'var(--font-jakarta)',
-                        color: 'oklch(0.28 0.07 245)',
-                        paddingTop: 12,
-                        borderTop: '1px solid oklch(0.91 0.01 245)',
-                      }}
-                    >
-                      <span>Total</span>
-                      <span style={{ color: 'oklch(0.44 0.17 250)' }}>${price.toFixed(2)}</span>
-                    </div>
-                    <p style={{ fontSize: 12, color: 'oklch(0.58 0.04 245)', marginTop: 4 }}>
-                      No auto-renewals. Your SSN/ITIN is encrypted in transit and at rest.
-                    </p>
-                  </div>
-                </SectionCard>
-
-                <NavRow
-                  onBack={() => setStep(4)}
-                  onNext={handleProceedToCheckout}
-                  nextLabel="Proceed to Payment →"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* ── RIGHT: SS-4 live preview ── */}
-          <div className="hidden lg:block sticky top-8">
-            <EINDocumentPreview form={previewForm} step={step} />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Shared sub-components ────────────────────────────────────────────────────
-
-function NavRow({
-  onBack,
-  onNext,
-  nextDisabled,
-  nextLabel = 'Continue →',
-}: {
-  onBack?: () => void
-  onNext?: () => void
-  nextDisabled?: boolean
-  nextLabel?: string
-}) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: onBack ? 'space-between' : 'flex-end',
-        paddingTop: 4,
-      }}
-    >
-      {onBack && (
-        <NavButton variant="ghost" onClick={onBack}>
-          ← Back
-        </NavButton>
+      {step === 1 && (
+        <Step1FindLLC
+          llcName={form.llcName}
+          tradeName={form.tradeName}
+          docNumber={form.docNumber}
+          sunbizState={sunbizState}
+          onDocNumber={(v) => { set('docNumber', v); setSunbizState('idle') }}
+          onLlcName={(v) => set('llcName', v)}
+          onTradeName={(v) => set('tradeName', v)}
+          onLookup={handleLookupOnSunbiz}
+          onNext={() => setStep(2)}
+        />
       )}
-      {onNext && (
-        <NavButton onClick={onNext} disabled={nextDisabled}>
-          {nextLabel}
-        </NavButton>
+      {step === 2 && (
+        <Step2Address
+          mailingStreet={form.mailingStreet}
+          mailingCity={form.mailingCity}
+          mailingState={form.mailingState}
+          mailingZip={form.mailingZip}
+          county={form.county}
+          memberCount={form.memberCount}
+          mailingHint={form.mailingHint}
+          onChange={set}
+          onNext={() => setStep(3)}
+        />
       )}
-    </div>
-  )
-}
-
-function CheckboxRow({
-  checked,
-  onChange,
-  label,
-  hint,
-}: {
-  checked: boolean
-  onChange: (v: boolean) => void
-  label: string
-  hint?: string
-}) {
-  return (
-    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 11, cursor: 'pointer' }}>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        style={{ marginTop: 2, flexShrink: 0 }}
-      />
-      <span>
-        <span
-          style={{
-            display: 'block',
-            fontSize: 13.5,
-            fontWeight: 500,
-            fontFamily: 'var(--font-jakarta)',
-            color: 'oklch(0.34 0.06 245)',
-          }}
-        >
-          {label}
-        </span>
-        {hint && (
-          <span
-            style={{
-              display: 'block',
-              marginTop: 3,
-              fontSize: 12.5,
-              color: 'oklch(0.56 0.04 245)',
-              lineHeight: 1.5,
-            }}
-          >
-            {hint}
-          </span>
-        )}
-      </span>
-    </label>
-  )
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: 16,
-        paddingBottom: 12,
-        borderBottom: '1px solid oklch(0.94 0.005 245)',
-      }}
-    >
-      <dt style={{ fontSize: 13, color: 'oklch(0.58 0.04 245)', flexShrink: 0 }}>{label}</dt>
-      <dd
-        style={{
-          fontSize: 13.5,
-          fontWeight: 500,
-          fontFamily: 'var(--font-jakarta)',
-          color: 'oklch(0.30 0.06 245)',
-          textAlign: 'right',
-        }}
-      >
-        {value}
-      </dd>
-    </div>
+      {step === 3 && (
+        <Step3BusinessDetails
+          businessStartDate={form.businessStartDate}
+          closingMonth={form.closingMonth}
+          applyReason={form.applyReason}
+          businessActivity={form.businessActivity}
+          businessActivityOther={form.businessActivityOther}
+          productService={form.productService}
+          onField={set}
+          step3Valid={step3Valid}
+          onNext={() => setStep(4)}
+        />
+      )}
+      {step === 4 && (
+        <Step4Employees
+          hasEmployees={hasEmployees}
+          toggleEmployees={toggleEmployees}
+          employeesAgricultural={form.employeesAgricultural}
+          employeesHousehold={form.employeesHousehold}
+          employeesOther={form.employeesOther}
+          firstWagesDate={form.firstWagesDate}
+          wants944={form.wants944}
+          previousEin={form.previousEin}
+          onField={set}
+          step4Valid={step4Valid}
+          onNext={() => setStep(5)}
+        />
+      )}
+      {step === 5 && (
+        <Step5Identity
+          responsiblePartyFirstName={form.responsiblePartyFirstName}
+          responsiblePartyMiddleName={form.responsiblePartyMiddleName}
+          responsiblePartyLastName={form.responsiblePartyLastName}
+          responsiblePartySuffix={form.responsiblePartySuffix}
+          contactEmail={form.contactEmail}
+          isUsCitizen={form.isUsCitizen}
+          taxIdType={form.taxIdType}
+          taxId={form.taxId}
+          onField={set}
+          step5Valid={step5Valid}
+          onNext={() => setStep(6)}
+        />
+      )}
+      {step === 6 && (
+        <Step6Review
+          form={form}
+          hasAnyEmployees={hasAnyEmployees}
+          price={price}
+          onProceed={handleProceedToCheckout}
+        />
+      )}
+    </IntakeLayout>
   )
 }

@@ -7,9 +7,7 @@ import IntakeLayout from '@/components/public/IntakeLayout'
 import PanelUSMap from '@/components/public/intake-panels/PanelUSMap'
 import PanelContactCard from '@/components/public/intake-panels/PanelContactCard'
 
-const SERVICE_FEE = 125
-const STATE_FEE = 138.75
-const TOTAL = SERVICE_FEE + STATE_FEE
+const SERVICE_FEE = 149
 
 // ─── shared components ────────────────────────────────────────────────────────
 
@@ -89,11 +87,7 @@ interface FormState {
   contactName: string
   contactEmail: string
   contactPhone: string
-  // Pre-filled from SunBiz
-  status: string
-  filingDate: string
-  principalAddress: string
-  registeredAgent: string
+  sunbizStatus: string
 }
 
 interface SunbizResult {
@@ -102,9 +96,7 @@ interface SunbizResult {
   status: string
   filingDate: string
   principalAddress: string
-  mailingAddress: string
   registeredAgent: string
-  registeredAgentAddress: string
 }
 
 // ─── step sub-components ──────────────────────────────────────────────────────
@@ -114,14 +106,14 @@ function Step1FindLLC({
   sunbizState,
   onDocNumberChange,
   onLlcNameChange,
-  onPullFromSunbiz,
+  onLookupOnSunbiz,
   onContinue,
 }: {
   form: FormState
   sunbizState: 'idle' | 'loading' | 'found' | 'not-found' | 'error'
   onDocNumberChange: (v: string) => void
   onLlcNameChange: (v: string) => void
-  onPullFromSunbiz: () => void
+  onLookupOnSunbiz: () => void
   onContinue: () => void
 }) {
   const step1Valid = !!(form.llcName.trim() && form.docNumber.trim())
@@ -129,7 +121,7 @@ function Step1FindLLC({
     <div>
       <StepHeading
         title="Let's find your Florida LLC"
-        subtitle="Enter your FL document number to pull your details from Sunbiz."
+        subtitle="Enter your FL document number and we'll pull your details from Sunbiz."
       />
       <FormCard>
         {/* Doc number row */}
@@ -149,7 +141,7 @@ function Step1FindLLC({
             />
             <button
               type="button"
-              onClick={onPullFromSunbiz}
+              onClick={onLookupOnSunbiz}
               disabled={!form.docNumber.trim() || sunbizState === 'loading'}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '15px 18px',
@@ -164,7 +156,7 @@ function Step1FindLLC({
                 ? <Loader2 size={14} className="animate-spin" />
                 : <FileText size={14} />
               }
-              {sunbizState === 'loading' ? 'Fetching…' : 'Pull from Sunbiz'}
+              {sunbizState === 'loading' ? 'Fetching…' : 'Look up on Sunbiz'}
             </button>
           </div>
 
@@ -172,9 +164,16 @@ function Step1FindLLC({
           {sunbizState === 'found' && (
             <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgb(240,253,244)', border: '1px solid rgb(187,247,208)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
               <CheckCircle2 size={15} style={{ color: 'rgb(22,163,74)', flexShrink: 0 }} />
-              <p style={{ fontSize: 13, fontWeight: 500, color: 'rgb(22,101,52)', fontFamily: 'var(--font-dm-sans)', margin: 0 }}>
-                Found — details pre-filled below
-              </p>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 500, color: 'rgb(22,101,52)', fontFamily: 'var(--font-dm-sans)', margin: 0 }}>
+                  Found — details pre-filled below
+                </p>
+                {form.sunbizStatus && (
+                  <p style={{ fontSize: 11.5, color: 'rgb(21,128,61)', fontFamily: 'var(--font-dm-sans)', margin: '2px 0 0' }}>
+                    Status: {form.sunbizStatus}
+                  </p>
+                )}
+              </div>
             </div>
           )}
           {sunbizState === 'not-found' && (
@@ -227,7 +226,7 @@ function Step2Contact({
     <div>
       <StepHeading
         title="Who should we contact?"
-        subtitle="We'll create your customer portal account with this email."
+        subtitle="We'll set up your customer portal account with this email."
       />
       <FormCard>
         <StyledTextInput label="Full Name" required value={form.contactName} onChange={onNameChange} placeholder="Jane Smith" />
@@ -244,7 +243,7 @@ function Step2Contact({
               Your information is safe
             </p>
             <p style={{ fontSize: 12.5, color: 'rgb(20,83,45)', fontFamily: 'var(--font-dm-sans)', margin: 0, lineHeight: 1.5 }}>
-              We use bank-level encryption and never sell your data. Your details are only used to file your annual report.
+              We use bank-level encryption and never sell your data. Your details are only used to process your registered agent transfer.
             </p>
           </div>
         </div>
@@ -257,16 +256,14 @@ function Step2Contact({
 
 function Step3Review({
   form,
-  sunbizState,
   onProceed,
 }: {
   form: FormState
-  sunbizState: 'idle' | 'loading' | 'found' | 'not-found' | 'error'
   onProceed: () => void
 }) {
   return (
     <div>
-      <StepHeading title="Review your Annual Report order" />
+      <StepHeading title="Review your RA Takeover order" />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
         {/* Left — order details */}
         <div style={{ background: '#ffffff', borderRadius: 24, padding: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -275,7 +272,7 @@ function Step3Review({
           </p>
           <ReviewRow label="LLC Name" value={form.llcName} />
           <ReviewRow label="FL Document Number" value={form.docNumber} />
-          {sunbizState === 'found' && form.status && <ReviewRow label="Status on Sunbiz" value={form.status} />}
+          {form.sunbizStatus && <ReviewRow label="Status on Sunbiz" value={form.sunbizStatus} />}
           <ReviewRow label="Contact Name" value={form.contactName} />
           <ReviewRow label="Email" value={form.contactEmail} />
           {form.contactPhone && <ReviewRow label="Phone" value={form.contactPhone} />}
@@ -288,20 +285,20 @@ function Step3Review({
           </p>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, paddingBottom: 12, borderBottom: '1px solid rgb(245,245,245)' }}>
-            <span style={{ fontSize: 13, color: 'rgb(130,130,130)', fontFamily: 'var(--font-dm-sans)' }}>Annual Report — service fee</span>
+            <span style={{ fontSize: 13, color: 'rgb(130,130,130)', fontFamily: 'var(--font-dm-sans)' }}>Registered Agent Service (annual)</span>
             <span style={{ fontSize: 13, fontWeight: 500, color: 'rgb(30,30,30)', fontFamily: 'var(--font-dm-sans)' }}>${SERVICE_FEE.toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, paddingBottom: 12, borderBottom: '1px solid rgb(245,245,245)' }}>
-            <span style={{ fontSize: 13, color: 'rgb(130,130,130)', fontFamily: 'var(--font-dm-sans)' }}>Florida state fee</span>
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgb(30,30,30)', fontFamily: 'var(--font-dm-sans)' }}>${STATE_FEE.toFixed(2)}</span>
+            <span style={{ fontSize: 13, color: 'rgb(130,130,130)', fontFamily: 'var(--font-dm-sans)' }}>Annual report filing</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgb(22,163,74)', fontFamily: 'var(--font-dm-sans)' }}>Included</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, paddingTop: 4 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'rgb(23,23,23)', fontFamily: 'var(--font-dm-sans)' }}>Total</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'rgb(59,96,243)', fontFamily: 'var(--font-dm-sans)' }}>${TOTAL.toFixed(2)}</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'rgb(23,23,23)', fontFamily: 'var(--font-dm-sans)' }}>Total today</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'rgb(59,96,243)', fontFamily: 'var(--font-dm-sans)' }}>${SERVICE_FEE.toFixed(2)}</span>
           </div>
 
           <p style={{ fontSize: 12, color: 'rgb(130,130,130)', fontFamily: 'var(--font-dm-sans)', margin: '8px 0 0', lineHeight: 1.5 }}>
-            No auto-renewals. Filed by a real person. Due May 1.
+            Annual report filing is included — you pay only the $138.75 FL state fee when it&apos;s due each May 1. No auto-renewals. Effective upon acceptance by Compass.
           </p>
 
           <div style={{ marginTop: 8 }}>
@@ -315,7 +312,7 @@ function Step3Review({
 
 // ─── page ─────────────────────────────────────────────────────────────────────
 
-export default function AnnualReportPage() {
+export default function RaTakeoverPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [form, setForm] = useState<FormState>({
@@ -324,78 +321,30 @@ export default function AnnualReportPage() {
     contactName: '',
     contactEmail: '',
     contactPhone: '',
-    status: '',
-    filingDate: '',
-    principalAddress: '',
-    registeredAgent: '',
+    sunbizStatus: '',
   })
 
-  const [sunbizState, setSunbizState] = useState<
-    'idle' | 'loading' | 'found' | 'not-found' | 'error'
-  >('idle')
+  const [sunbizState, setSunbizState] = useState<'idle' | 'loading' | 'found' | 'not-found' | 'error'>('idle')
 
   function set<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  async function handlePullFromSunbiz() {
+  async function handleLookupOnSunbiz() {
     if (!form.docNumber.trim()) return
-
-    const docKey = form.docNumber.trim().toLowerCase()
-    const cacheKey = `sunbizLookup:${docKey}`
-
-    // Serve from sessionStorage if already fetched this session
-    const cached = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null
-    if (cached) {
-      const entity: SunbizResult = JSON.parse(cached)
-      setForm((prev) => ({
-        ...prev,
-        llcName:          entity.name             || prev.llcName,
-        status:           entity.status           || '',
-        filingDate:       entity.filingDate       || '',
-        principalAddress: entity.principalAddress || '',
-        registeredAgent:  entity.registeredAgent  || '',
-      }))
-      setSunbizState('found')
-      return
-    }
-
     setSunbizState('loading')
-
     try {
-      const res = await fetch(
-        `/api/sunbiz/lookup?docNumber=${encodeURIComponent(form.docNumber.trim())}`
-      )
-
-      if (res.status === 503) {
-        setSunbizState('error')
-        return
-      }
-      if (res.status === 404) {
-        setSunbizState('not-found')
-        return
-      }
-      if (!res.ok) {
-        setSunbizState('error')
-        return
-      }
-
+      const res = await fetch(`/api/sunbiz/lookup?docNumber=${encodeURIComponent(form.docNumber.trim())}`)
+      if (res.status === 503) { setSunbizState('error'); return }
+      if (res.status === 404) { setSunbizState('not-found'); return }
+      if (!res.ok) { setSunbizState('error'); return }
       const json = await res.json()
       const entity: SunbizResult = json.data
-
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem(cacheKey, JSON.stringify(entity))
-      }
-
       setForm((prev) => ({
         ...prev,
-        llcName:          entity.name             || prev.llcName,
-        status:           entity.status           || '',
-        filingDate:       entity.filingDate       || '',
-        principalAddress: entity.principalAddress || '',
-        registeredAgent:  entity.registeredAgent  || '',
+        llcName: entity.name || prev.llcName,
+        sunbizStatus: entity.status || '',
       }))
-
       setSunbizState('found')
     } catch {
       setSunbizState('error')
@@ -404,25 +353,20 @@ export default function AnnualReportPage() {
 
   function handleProceedToCheckout() {
     const payload = {
-      serviceType: 'ANNUAL_REPORT',
+      serviceType: 'RA_TAKEOVER',
       tier: 'STANDARD',
       businessName: form.llcName,
       customerName: form.contactName,
       customerEmail: form.contactEmail,
       customerPhone: form.contactPhone || undefined,
       serviceFee: SERVICE_FEE,
-      stateFee: STATE_FEE,
+      stateFee: 0,
       docNumber: form.docNumber,
-      sourceHref: '/annual-report',
-      summary: `Annual Report — ${form.llcName}`,
-      lineItems: [
-        { label: 'Service fee', amount: SERVICE_FEE },
-        { label: 'Florida state fee', amount: STATE_FEE },
-      ],
+      sourceHref: '/ra-takeover',
+      summary: `RA Takeover — ${form.llcName}`,
+      lineItems: [{ label: 'Registered Agent Service (annual)', amount: SERVICE_FEE }],
     }
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('checkoutPayload', JSON.stringify(payload))
-    }
+    if (typeof window !== 'undefined') sessionStorage.setItem('checkoutPayload', JSON.stringify(payload))
     router.push('/checkout')
   }
 
@@ -449,7 +393,7 @@ export default function AnnualReportPage() {
           sunbizState={sunbizState}
           onDocNumberChange={(v) => { set('docNumber', v); setSunbizState('idle') }}
           onLlcNameChange={(v) => set('llcName', v)}
-          onPullFromSunbiz={handlePullFromSunbiz}
+          onLookupOnSunbiz={handleLookupOnSunbiz}
           onContinue={() => step1Valid && setStep(2)}
         />
       )}
@@ -465,7 +409,6 @@ export default function AnnualReportPage() {
       {step === 3 && (
         <Step3Review
           form={form}
-          sunbizState={sunbizState}
           onProceed={handleProceedToCheckout}
         />
       )}
