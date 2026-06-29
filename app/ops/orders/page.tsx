@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Search, FileText } from 'lucide-react'
+import { Search, FileText, Plus } from 'lucide-react'
 import { StatusPill } from '@/components/ui/StatusPill'
 import { OrderStatus } from '@prisma/client'
+
+const BLUE = '#3B60F3'
 
 const STATUS_FILTERS = ['All', 'INTAKE', 'DATA_QC', 'READY_TO_FILE', 'FILED', 'COMPLETED', 'EXCEPTION'] as const
 type Filter = (typeof STATUS_FILTERS)[number]
@@ -17,10 +19,7 @@ interface OrderRow {
   totalAmount: string
   dueDate: string | null
   createdAt: string
-  customer: {
-    name: string
-    email: string
-  }
+  customer: { name: string; email: string }
 }
 
 function formatDate(iso: string | null) {
@@ -38,8 +37,14 @@ function isDue(dueDate: string | null) {
 }
 
 function daysOverdue(dueDate: string) {
-  const diff = Date.now() - new Date(dueDate).getTime()
-  return Math.floor(diff / 86400000)
+  return Math.floor((Date.now() - new Date(dueDate).getTime()) / 86400000)
+}
+
+function filterLabel(f: Filter) {
+  if (f === 'All') return 'All'
+  if (f === 'DATA_QC') return 'Data QC'
+  if (f === 'READY_TO_FILE') return 'Ready to File'
+  return f.charAt(0) + f.slice(1).toLowerCase()
 }
 
 export default function OpsOrdersPage() {
@@ -75,7 +80,7 @@ export default function OpsOrdersPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-navy-mid)' }}>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-navy-mid)', fontFamily: 'var(--font-inter)' }}>
             Orders
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--color-muted)' }}>
@@ -84,60 +89,59 @@ export default function OpsOrdersPage() {
         </div>
         <Link
           href="/ops/orders/new"
-          className="px-4 py-2 rounded-md text-sm font-medium text-white"
-          style={{ backgroundColor: 'var(--color-navy)' }}
+          className="flex items-center gap-2 text-sm font-medium text-white rounded-lg px-4 py-2"
+          style={{ background: BLUE }}
         >
-          + New Order
+          <Plus size={15} /> New Order
         </Link>
       </div>
 
-      {/* Filter pills */}
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        {STATUS_FILTERS.map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1 rounded-full text-sm transition-colors ${
-              filter === f
-                ? 'text-white'
-                : 'border text-gray-600 hover:bg-gray-50'
-            }`}
-            style={
-              filter === f
-                ? { backgroundColor: 'var(--color-navy)', borderColor: 'transparent' }
-                : { borderColor: 'var(--color-border)' }
-            }
-          >
-            {f === 'All' ? 'All' : f.charAt(0) + f.slice(1).toLowerCase()}
-          </button>
-        ))}
-      </div>
+      {/* Toolbar */}
+      <div
+        className="bg-white rounded-xl p-4 mb-4"
+        style={{ border: '1px solid var(--color-border)' }}
+      >
+        {/* Filter pills */}
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className="px-3 py-1 rounded-full text-xs font-medium transition-colors"
+              style={
+                filter === f
+                  ? { background: BLUE, color: '#fff' }
+                  : { background: 'transparent', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }
+              }
+            >
+              {filterLabel(f)}
+            </button>
+          ))}
+        </div>
 
-      {/* Search */}
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-        <input
-          type="text"
-          placeholder="Search by customer, email, or order ID…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 text-sm rounded-md border outline-none focus:ring-2"
-          style={{
-            borderColor: 'var(--color-border)',
-            ['--tw-ring-color' as string]: 'var(--color-blue)',
-          }}
-        />
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={15} style={{ color: 'var(--color-muted)' }} />
+          <input
+            type="text"
+            placeholder="Search by customer, email, or order ID…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 text-sm rounded-lg outline-none transition-shadow focus:shadow-sm"
+            style={{ border: '1px solid var(--color-border)', background: 'rgb(248,249,250)' }}
+          />
+        </div>
       </div>
 
       {/* Table */}
       <div
-        className="rounded-lg overflow-hidden border"
-        style={{ borderColor: 'var(--color-border)' }}
+        className="bg-white rounded-xl overflow-hidden"
+        style={{ border: '1px solid var(--color-border)' }}
       >
-        <table className="w-full text-sm bg-white">
+        <table className="w-full text-sm">
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-              {['BUSINESS', 'SERVICE', 'STATE', 'STATUS', 'DUE DATE', 'AMOUNT'].map((h) => (
+            <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'rgb(248,249,250)' }}>
+              {['Business', 'Service', 'State', 'Status', 'Due Date', 'Amount'].map((h) => (
                 <th
                   key={h}
                   className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
@@ -151,7 +155,7 @@ export default function OpsOrdersPage() {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-sm text-gray-400">
+                <td colSpan={6} className="px-4 py-12 text-center text-sm" style={{ color: 'var(--color-muted)' }}>
                   Loading…
                 </td>
               </tr>
@@ -160,50 +164,57 @@ export default function OpsOrdersPage() {
               <tr>
                 <td colSpan={6} className="px-4 py-16 text-center">
                   <div className="flex flex-col items-center">
-                    <FileText className="text-gray-300" size={40} />
-                    <p className="text-sm font-medium text-gray-500 mt-3">No orders found</p>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <FileText size={36} style={{ color: 'var(--color-border)' }} />
+                    <p className="text-sm font-medium mt-3" style={{ color: 'var(--color-muted)' }}>No orders found</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--color-muted)', opacity: 0.7 }}>
                       {filter !== 'All' ? 'Try a different filter' : 'Create your first order above'}
                     </p>
                   </div>
                 </td>
               </tr>
             )}
-            {!loading &&
-              visible.map((order) => (
-                <tr
-                  key={order.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
-                  style={{ borderBottom: '1px solid var(--color-border)' }}
-                  onClick={() => { window.location.href = `/ops/orders/${order.id}` }}
-                >
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-gray-900">{order.customer.name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
-                      {order.customer.email}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">{formatService(order.serviceType)}</td>
-                  <td className="px-4 py-3 font-bold text-gray-900">{order.state}</td>
-                  <td className="px-4 py-3">
-                    <StatusPill status={order.status} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-gray-700">{formatDate(order.dueDate)}</span>
-                    {order.dueDate && isDue(order.dueDate) && order.status !== 'COMPLETED' && (
-                      <p className="text-xs text-orange-500 mt-0.5">
-                        {daysOverdue(order.dueDate)}d overdue
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium text-gray-900">
-                    ${Number(order.totalAmount).toFixed(2)}
-                  </td>
-                </tr>
-              ))}
+            {!loading && visible.map((order) => (
+              <tr
+                key={order.id}
+                className="cursor-pointer transition-colors hover:bg-[rgb(248,249,250)]"
+                style={{ borderBottom: '1px solid var(--color-border)' }}
+                onClick={() => { window.location.href = `/ops/orders/${order.id}` }}
+              >
+                <td className="px-4 py-3.5">
+                  <p className="font-medium" style={{ color: 'var(--color-navy-mid)' }}>{order.customer.name}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>{order.customer.email}</p>
+                </td>
+                <td className="px-4 py-3.5 text-sm" style={{ color: 'var(--color-muted)' }}>
+                  {formatService(order.serviceType)}
+                </td>
+                <td className="px-4 py-3.5 text-sm font-semibold" style={{ color: 'var(--color-navy-mid)' }}>
+                  {order.state}
+                </td>
+                <td className="px-4 py-3.5">
+                  <StatusPill status={order.status} />
+                </td>
+                <td className="px-4 py-3.5">
+                  <span className="text-sm" style={{ color: isDue(order.dueDate) && order.status !== 'COMPLETED' ? '#ef4444' : 'var(--color-muted)' }}>
+                    {formatDate(order.dueDate)}
+                  </span>
+                  {order.dueDate && isDue(order.dueDate) && order.status !== 'COMPLETED' && (
+                    <p className="text-xs text-red-400 mt-0.5">{daysOverdue(order.dueDate)}d overdue</p>
+                  )}
+                </td>
+                <td className="px-4 py-3.5 text-right text-sm font-semibold" style={{ color: 'var(--color-navy-mid)' }}>
+                  ${Number(order.totalAmount).toFixed(2)}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
+
+      {!loading && visible.length > 0 && (
+        <p className="text-xs mt-3 text-right" style={{ color: 'var(--color-muted)' }}>
+          {visible.length} order{visible.length !== 1 ? 's' : ''}
+        </p>
+      )}
     </div>
   )
 }
