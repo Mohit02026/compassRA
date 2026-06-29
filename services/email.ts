@@ -15,7 +15,7 @@ interface WelcomeEmailPayload {
   customerName: string
   businessName: string
   serviceType: string
-  tempPassword: string
+  tempPassword?: string // absent when customer set their own password during checkout
 }
 
 export async function sendWelcome(payload: WelcomeEmailPayload): Promise<void> {
@@ -24,7 +24,7 @@ export async function sendWelcome(payload: WelcomeEmailPayload): Promise<void> {
   if (isMock) {
     console.log(`[Email mock] WelcomeEmail → ${to}`)
     console.log(`  customer: ${customerName}, business: ${businessName}`)
-    console.log(`  temp password: ${tempPassword}`)
+    if (tempPassword) console.log(`  temp password: ${tempPassword}`)
     return
   }
 

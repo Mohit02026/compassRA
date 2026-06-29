@@ -14,7 +14,7 @@ interface WelcomeEmailProps {
   customerName: string
   businessName: string
   serviceType: string
-  tempPassword: string
+  tempPassword?: string
   portalUrl: string
 }
 
@@ -55,11 +55,17 @@ export default function WelcomeEmail({
             </Link>
           </Section>
 
-          <Text style={paragraph}>
-            Your temporary password is: <strong style={code}>{tempPassword}</strong>
-            <br />
-            You&apos;ll be asked to set a new one when you first sign in.
-          </Text>
+          {tempPassword ? (
+            <Text style={paragraph}>
+              Your temporary password is: <strong style={code}>{tempPassword}</strong>
+              <br />
+              You&apos;ll be asked to set a new one when you first sign in.
+            </Text>
+          ) : (
+            <Text style={paragraph}>
+              Use the email and password you created during checkout to sign in.
+            </Text>
+          )}
 
           <Hr style={hr} />
 

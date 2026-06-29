@@ -30,13 +30,13 @@ let ctx: Awaited<ReturnType<typeof seedTestTenant>>
 beforeEach(async () => {
   await cleanDb()
   ctx = await seedTestTenant()
-  process.env.COMPASS_TENANT_ID = ctx.tenant.id
+  // The checkout route looks up tenant by slug='compass' — rename to match.
+  await db.tenant.update({ where: { id: ctx.tenant.id }, data: { slug: 'compass' } })
   vi.mocked(stripe().paymentIntents.create).mockClear()
 })
 
 afterAll(async () => {
   await cleanDb()
-  delete process.env.COMPASS_TENANT_ID
 })
 
 function makeRequest(body: object): NextRequest {
@@ -60,8 +60,9 @@ const basePayload = () => ({
 // ── Configuration guards ────────────────────────────────────────────────────
 
 describe('configuration', () => {
-  it('returns 500 when COMPASS_TENANT_ID is not set', async () => {
-    delete process.env.COMPASS_TENANT_ID
+  it('returns 500 when no compass tenant exists in DB', async () => {
+    // Wipe DB so there is no tenant with slug='compass' — simulates unseeded environment.
+    await cleanDb()
     const res = await POST(makeRequest(basePayload()))
     const json = await res.json()
     expect(res.status).toBe(500)

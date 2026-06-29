@@ -1,4 +1,4 @@
-// SunBiz entity lookup — used by annual report intake form "Pull from SunBiz" button.
+// SunBiz entity lookup via SunBiz Daily API.
 // No auth required — public data.
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -22,14 +22,6 @@ export async function GET(req: NextRequest) {
 
   const entity = await lookupByDocNumber(parsed.data.docNumber)
 
-  // Cloudflare blocked the request — tell the client to fall back to manual entry
-  if ((entity as unknown as string) === 'blocked') {
-    return NextResponse.json(
-      { error: { code: 503, message: 'SunBiz is temporarily unreachable — please fill in manually' } },
-      { status: 503 }
-    )
-  }
-
   if (!entity) {
     return NextResponse.json(
       { error: { code: 404, message: 'Entity not found on SunBiz' } },
@@ -37,5 +29,8 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  return NextResponse.json({ data: entity })
+  return NextResponse.json(
+    { data: entity },
+    { headers: { 'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600' } }
+  )
 }

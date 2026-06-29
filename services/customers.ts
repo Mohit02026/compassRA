@@ -7,12 +7,13 @@ interface CreateCustomerInput {
   name: string
   email: string
   phone?: string
+  password?: string // caller-provided password; if absent a temp password is generated
 }
 
 interface CreateCustomerResult {
   customerId: string
   userId: string
-  tempPassword: string
+  tempPassword: string | null // null when caller supplied their own password
 }
 
 // Generates a readable temp password
@@ -28,10 +29,11 @@ function generateTempPassword(): string {
 export async function createCustomerWithUser(
   input: CreateCustomerInput
 ): Promise<CreateCustomerResult> {
-  const { tenantId, name, email, phone } = input
+  const { tenantId, name, email, phone, password } = input
 
-  const tempPassword = generateTempPassword()
-  const passwordHash = await hash(tempPassword, 12)
+  const usingProvidedPassword = !!password
+  const rawTempPassword = usingProvidedPassword ? null : generateTempPassword()
+  const passwordHash = await hash(password ?? rawTempPassword!, 12)
 
   // Check if user already exists (re-order for existing customer)
   const existingUser = await prisma.user.findFirst({
@@ -46,7 +48,7 @@ export async function createCustomerWithUser(
     return {
       customerId: existingUser.customer.id,
       userId: existingUser.id,
-      tempPassword, // won't be used — existing user keeps their password
+      tempPassword: null, // existing user keeps their own password
     }
   }
 
@@ -58,7 +60,7 @@ export async function createCustomerWithUser(
         email,
         passwordHash,
         role: Role.CUSTOMER,
-        mustChangePwd: true,
+        mustChangePwd: !usingProvidedPassword,
       },
     })
 
@@ -78,6 +80,6 @@ export async function createCustomerWithUser(
   return {
     customerId: result.customer.id,
     userId: result.user.id,
-    tempPassword,
+    tempPassword: rawTempPassword,
   }
 }

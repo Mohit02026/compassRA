@@ -45,4 +45,5 @@ vi.mock('@/services/email', () => ({
   sendAnnualReportReminder: vi.fn().mockResolvedValue(undefined),
   sendEinCompleted: vi.fn().mockResolvedValue(undefined),
   sendLegalNotice: vi.fn().mockResolvedValue(undefined),
+  sendOpsAlert: vi.fn().mockResolvedValue(undefined),
 }))

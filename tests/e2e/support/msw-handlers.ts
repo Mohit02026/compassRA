@@ -90,58 +90,46 @@ const resendSendEmail = http.post(
   () => HttpResponse.json({ id: 'email_e2e_001' })
 )
 
-// ── SunBiz ────────────────────────────────────────────────────────────────────
+// ── SunBiz Daily API ──────────────────────────────────────────────────────────
+// Services now call www.sunbizdaily.com/api/v2/ (JSON) not search.sunbiz.org (HTML).
 
-// Name search results
+// Name search: GET /api/v2/filings/?corporation_name=...
 const sunbizNameSearch = http.get(
-  'https://search.sunbiz.org/Inquiry/CorporationSearch/SearchResults',
+  'https://www.sunbizdaily.com/api/v2/filings/',
   ({ request }) => {
     const url = new URL(request.url)
-    const term = (url.searchParams.get('searchTerm') ?? '').toUpperCase()
+    const term = (url.searchParams.get('corporation_name') ?? '').toUpperCase()
 
     // UNIQUE / AVAILABLE prefix → no matches → available
     if (term.startsWith('UNIQUE') || term.startsWith('AVAILABLE')) {
-      return new HttpResponse('<html><body><p>No records found.</p></body></html>', {
-        headers: { 'content-type': 'text/html' },
-      })
+      return HttpResponse.json({ filings: [] })
     }
 
-    // Any other query → return one similar result → likely
-    return new HttpResponse(
-      `<html><body>
-        <a href="/Inquiry/CorporationSearch/SearchResultDetail?inquiryType=EntityName">TAKEN TEST LLC OF FLORIDA</a>
-      </body></html>`,
-      { headers: { 'content-type': 'text/html' } }
-    )
+    // Any other query → one similar result → "likely"
+    return HttpResponse.json({
+      filings: [{ corporation_name: 'TAKEN TEST LLC OF FLORIDA', status: 'A' }],
+    })
   }
 )
 
-// Entity lookup by document number (annual report pre-pop SunBiz pull)
+// Entity lookup by document number: GET /api/v2/filings/:docNumber/
 const sunbizEntityLookup = http.get(
-  'https://search.sunbiz.org/Inquiry/CorporationSearch/GetFilingInformation',
-  ({ request }) => {
-    const url = new URL(request.url)
-    const docNumber = url.searchParams.get('masterDataToListOn') ?? ''
-
+  'https://www.sunbizdaily.com/api/v2/filings/:docNumber/',
+  ({ params }) => {
+    const docNumber = params.docNumber as string
     if (!docNumber.match(/^[LP]\d{7,9}$/)) {
-      return new HttpResponse('<html><body><p>No records found.</p></body></html>', {
-        headers: { 'content-type': 'text/html' },
-      })
+      return new HttpResponse(null, { status: 404 })
     }
-
-    return new HttpResponse(
-      `<html><body>
-        <span id="lblEntityName">SUNBIZ LOOKUP LLC</span>
-        <span>Document Number</span><span>${docNumber}</span>
-        <span>Status</span><span>ACTIVE</span>
-        <span>Filing Date</span><span>03/15/2022</span>
-        <span>Principal Address</span><span>100 Main St Tampa FL 33601</span>
-        <span>Mailing Address</span><span>100 Main St Tampa FL 33601</span>
-        <span>Registered Agent Name</span><span>COMPASS REGISTERED AGENT LLC</span>
-        <span>Registered Agent Address</span><span>8 The Green Suite 300 Dover DE 19901</span>
-      </body></html>`,
-      { headers: { 'content-type': 'text/html' } }
-    )
+    return HttpResponse.json({
+      corporation_number: docNumber,
+      corporation_name: 'SUNBIZ LOOKUP LLC',
+      status: 'A',
+      file_date: '2022-03-15',
+      county: 'Hillsborough',
+      principal_address: { address_1: '100 Main St', city: 'Tampa', state: 'FL', zip: '33601' },
+      mailing_address: { address_1: '100 Main St', city: 'Tampa', state: 'FL', zip: '33601' },
+      registered_agent: { name: 'COMPASS REGISTERED AGENT LLC' },
+    })
   }
 )
 

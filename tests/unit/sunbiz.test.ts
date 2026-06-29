@@ -1,82 +1,110 @@
 // Unit tests for services/sunbiz.ts
-// Mocks global fetch — no real SunBiz HTTP calls.
+// Tests against the SunBiz Daily API (JSON-based, session 30 rewrite).
+// Mocks global fetch and Redis — no real HTTP calls.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { lookupByDocNumber } from '@/services/sunbiz'
 
-// Minimal SunBiz entity detail HTML shaped to match parseEntityDetail regexes.
-// Each field uses <span>LabelText</span><span>Value</span> so that:
-//   Label[^>]*> consumes `</span>` after the label text, then <span[^>]*> matches the value span.
-function htmlWithEntity(overrides: Partial<{
-  name: string
-  docNumber: string
+// Skip Redis in unit tests — integration concerns tested elsewhere
+vi.mock('@/lib/redis', () => ({ getRedis: () => null }))
+
+function makeApiResponse(overrides: Partial<{
+  corporation_number: string
+  corporation_name: string
   status: string
-  filingDate: string
-  principalAddress: string
-  mailingAddress: string
-  raName: string
-  raAddress: string
-}> = {}): string {
-  const e = {
-    name: 'ACME HOLDINGS LLC',
-    docNumber: 'L23000012345',
-    status: 'ACTIVE',
-    filingDate: '01/15/2023',
-    principalAddress: '100 Main St Tampa FL 33601',
-    mailingAddress: '100 Main St Tampa FL 33601',
-    raName: 'COMPASS REGISTERED AGENT LLC',
-    raAddress: '8 The Green Suite 300 Dover DE 19901',
+  file_date: string
+  county: string
+  principal_address: { address_1: string; address_2?: string; city: string; state: string; zip: string }
+  mailing_address: { address_1: string; address_2?: string; city: string; state: string; zip: string }
+  registered_agent: { name: string }
+}> = {}) {
+  return {
+    corporation_number: 'L23000012345',
+    corporation_name: 'ACME HOLDINGS LLC',
+    status: 'A',
+    file_date: '2023-01-15',
+    county: 'Hillsborough',
+    principal_address: { address_1: '100 Main St', city: 'Tampa', state: 'FL', zip: '33601' },
+    mailing_address: { address_1: '100 Main St', city: 'Tampa', state: 'FL', zip: '33601' },
+    registered_agent: { name: 'COMPASS REGISTERED AGENT LLC' },
     ...overrides,
   }
-
-  // Addresses must start with a digit to satisfy [\d][^<]{10,80} capture group
-  return `
-    <html><body>
-      <span id="lblEntityName">${e.name}</span>
-      <span>Document Number</span><span>${e.docNumber}</span>
-      <span>Status</span><span>${e.status}</span>
-      <span>Filing Date</span><span>${e.filingDate}</span>
-      <span>Principal Address</span><span>${e.principalAddress}</span>
-      <span>Mailing Address</span><span>${e.mailingAddress}</span>
-      <span>Registered Agent Name</span><span>${e.raName}</span>
-      <span>Registered Agent Address</span><span>${e.raAddress}</span>
-    </body></html>
-  `
 }
 
-function mockFetchHtml(html: string, ok = true) {
+function mockFetchJson(body: unknown, status = 200) {
   global.fetch = vi.fn().mockResolvedValue({
-    ok,
-    status: ok ? 200 : 404,
-    text: vi.fn().mockResolvedValue(html),
+    ok: status >= 200 && status < 300,
+    status,
+    json: vi.fn().mockResolvedValue(body),
   }) as unknown as typeof fetch
 }
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  process.env.SUNBIZ_DAILY_API_KEY = 'test-key'
+})
+
+afterEach(() => {
+  delete process.env.SUNBIZ_DAILY_API_KEY
 })
 
 describe('lookupByDocNumber', () => {
-  it('returns entity when HTML has all fields', async () => {
-    mockFetchHtml(htmlWithEntity())
+  it('returns null when SUNBIZ_DAILY_API_KEY is not set', async () => {
+    delete process.env.SUNBIZ_DAILY_API_KEY
+    const entity = await lookupByDocNumber('L23000012345')
+    expect(entity).toBeNull()
+  })
+
+  it('returns mapped entity on successful response', async () => {
+    mockFetchJson(makeApiResponse())
     const entity = await lookupByDocNumber('L23000012345')
     expect(entity).not.toBeNull()
     expect(entity!.name).toBe('ACME HOLDINGS LLC')
     expect(entity!.documentNumber).toBe('L23000012345')
-    expect(entity!.status).toBe('ACTIVE')
-    expect(entity!.filingDate).toBe('01/15/2023')
+    expect(entity!.filingDate).toBe('2023-01-15')
+    expect(entity!.county).toBe('Hillsborough')
   })
 
-  it('returns entity with registered agent info', async () => {
-    mockFetchHtml(htmlWithEntity())
+  it('maps status A → Active and I → Inactive', async () => {
+    mockFetchJson(makeApiResponse({ status: 'A' }))
+    expect((await lookupByDocNumber('L23000012345'))!.status).toBe('Active')
+
+    mockFetchJson(makeApiResponse({ status: 'I' }))
+    expect((await lookupByDocNumber('L23000012345'))!.status).toBe('Inactive')
+  })
+
+  it('returns registered agent name', async () => {
+    mockFetchJson(makeApiResponse())
     const entity = await lookupByDocNumber('L23000012345')
     expect(entity!.registeredAgent).toBe('COMPASS REGISTERED AGENT LLC')
-    expect(entity!.registeredAgentAddress).toContain('8 The Green')
   })
 
-  it('returns null on non-ok response', async () => {
-    mockFetchHtml('', false)
+  it('composes principalAddress as a single line', async () => {
+    mockFetchJson(makeApiResponse({
+      principal_address: { address_1: '100 Main St', city: 'Tampa', state: 'FL', zip: '33601' },
+    }))
+    const entity = await lookupByDocNumber('L23000012345')
+    expect(entity!.principalAddress).toBe('100 Main St, Tampa, FL, 33601')
+  })
+
+  it('includes address_2 in composed address when present', async () => {
+    mockFetchJson(makeApiResponse({
+      principal_address: { address_1: '625 Court St', address_2: 'Ste 100', city: 'Clearwater', state: 'FL', zip: '33756' },
+    }))
+    const entity = await lookupByDocNumber('L23000012345')
+    expect(entity!.principalAddress).toContain('Ste 100')
+    expect(entity!.principalStreet).toBe('625 Court St Ste 100')
+  })
+
+  it('returns null on 404', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 }) as unknown as typeof fetch
     const entity = await lookupByDocNumber('L99999999999')
+    expect(entity).toBeNull()
+  })
+
+  it('returns null on other non-ok response', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch
+    const entity = await lookupByDocNumber('L23000012345')
     expect(entity).toBeNull()
   })
 
@@ -86,49 +114,25 @@ describe('lookupByDocNumber', () => {
     expect(entity).toBeNull()
   })
 
-  it('returns null when HTML has no recognisable entity fields', async () => {
-    mockFetchHtml('<html><body>No results found</body></html>')
-    const entity = await lookupByDocNumber('L23000000000')
-    expect(entity).toBeNull()
-  })
-
-  it('encodes docNumber in URL', async () => {
-    mockFetchHtml(htmlWithEntity())
+  it('calls sunbizdaily.com with docNumber in URL', async () => {
+    mockFetchJson(makeApiResponse())
     await lookupByDocNumber('L23000012345')
     const calledUrl = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+    expect(calledUrl).toContain('sunbizdaily.com')
     expect(calledUrl).toContain('L23000012345')
-    expect(calledUrl).toContain('sunbiz.org')
   })
 
-  it('always requests fresh data (revalidate: 0)', async () => {
-    mockFetchHtml(htmlWithEntity())
+  it('sends X-API-Key header', async () => {
+    mockFetchJson(makeApiResponse())
     await lookupByDocNumber('L23000012345')
-    const callOptions = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit & { next?: { revalidate: number } }
-    expect(callOptions.next?.revalidate).toBe(0)
+    const opts = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as { headers: Record<string, string> }
+    expect(opts.headers['X-API-Key']).toBe('test-key')
   })
 
-  it('falls back to passed docNumber when page does not echo it', async () => {
-    // HTML with entity name but no document number field
-    const html = `<html><body><span id="lblEntityName">ACME LLC</span></body></html>`
-    mockFetchHtml(html)
-    const entity = await lookupByDocNumber('L99000099999')
-    // Can be null (no nameMatch AND no docMatch) — this is expected behaviour
-    // Entity name alone is enough to match
-    if (entity !== null) {
-      expect(entity.documentNumber).toBe('L99000099999')
-    }
-  })
-
-  it('handles INACTIVE status', async () => {
-    mockFetchHtml(htmlWithEntity({ status: 'INACTIVE' }))
-    const entity = await lookupByDocNumber('L23000012345')
-    expect(entity!.status).toBe('INACTIVE')
-  })
-
-  it('cleans extra whitespace from extracted text', async () => {
-    const html = htmlWithEntity({ name: '  ACME   HOLDINGS   LLC  ' })
-    mockFetchHtml(html)
-    const entity = await lookupByDocNumber('L23000012345')
-    expect(entity!.name).toBe('ACME HOLDINGS LLC')
+  it('requests fresh data with revalidate: 0', async () => {
+    mockFetchJson(makeApiResponse())
+    await lookupByDocNumber('L23000012345')
+    const opts = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit & { next?: { revalidate: number } }
+    expect(opts.next?.revalidate).toBe(0)
   })
 })

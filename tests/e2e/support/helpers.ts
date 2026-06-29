@@ -87,16 +87,16 @@ export async function simulateStripePayment(
 }
 
 // Simulate a GHL opportunity stage change for an order.
+// stageName must match a key in GHL_STAGE_NAME_MAP (e.g. "Data QC", "Ready to File").
 export async function simulateGhlStageChange(
   request: APIRequestContext,
   baseURL: string,
   opportunityId: string,
-  stageId: string
+  stageName: string
 ) {
   const payload = {
-    type: 'OpportunityStageUpdate',
-    opportunityId,
-    stageId,
+    id: opportunityId,
+    pipleline_stage: stageName, // GHL's own typo — "pipleline" not "pipeline"
   }
   const body = JSON.stringify(payload)
   const sig = signGhlPayload(body)

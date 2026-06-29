@@ -7,6 +7,7 @@ import { generateSS4 } from '@/services/ss4'
 import { sendWelcome, sendOrderFiled, sendOrderCompleted, sendException, sendOpsAlert } from '@/services/email'
 import { createCustomerWithUser } from '@/services/customers'
 import { updateOpportunityStage, getStageId } from '@/lib/ghl'
+import { lookupByDocNumber } from '@/services/sunbiz'
 
 // Compass RA constants — used in Articles of Org
 // Address confirmed via SunBiz (Document # L25000307072, filed 07/10/2025)
@@ -47,6 +48,7 @@ export interface CreateOrderInput {
   customerName: string
   customerEmail: string
   customerPhone?: string
+  password?: string // inline account password from checkout; if absent a temp password is emailed
 
   // Business
   businessName: string
@@ -120,6 +122,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     name: input.customerName,
     email: input.customerEmail,
     phone: input.customerPhone,
+    password: input.password,
   })
 
   const totalAmount = input.serviceFee + input.stateFee
@@ -153,7 +156,9 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   }
 
   // Annual report extras
-  if (input.flDocNumber) orderDataFields.flDocNumber = input.flDocNumber
+  if (input.flDocNumber) {
+    orderDataFields.flDocNumber = input.flDocNumber
+  }
 
   // EIN fields — stored individually for structured access
   if (input.addOnEin) {
@@ -285,16 +290,37 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     })
   }
 
-  // 6. Fire welcome email in background (non-blocking)
+  // 6. SunBiz entity snapshot — annual report orders only (fire-and-forget).
+  // Stores the entity state as-of order creation so ops sees what SunBiz showed at
+  // checkout time, independent of future status changes on the FL registry.
+  if (input.serviceType === ServiceType.ANNUAL_REPORT && input.flDocNumber) {
+    void snapshotSunbizEntity(order.id, input.flDocNumber)
+  }
+
+  // 7. Fire welcome email in background (non-blocking).
+  // tempPassword is null when the customer chose their own password during checkout —
+  // the email still sends, it just omits the credentials block.
   sendWelcome({
     to: input.customerEmail,
     customerName: input.customerName,
     businessName: input.businessName,
     serviceType: input.serviceType,
-    tempPassword,
+    tempPassword: tempPassword ?? undefined,
   }).catch((err) => console.error('[Email] sendWelcome failed:', err))
 
   return { orderId: order.id, customerId }
+}
+
+async function snapshotSunbizEntity(orderId: string, docNumber: string): Promise<void> {
+  try {
+    const entity = await lookupByDocNumber(docNumber)
+    if (!entity) return
+    await prisma.orderData.create({
+      data: { orderId, key: 'sunbizSnapshot', value: JSON.stringify(entity) },
+    })
+  } catch (err) {
+    console.error('[orders] sunbiz snapshot failed:', err)
+  }
 }
 
 async function generateAndUploadFilingSheet(params: {

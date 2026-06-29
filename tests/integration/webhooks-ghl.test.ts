@@ -1,6 +1,6 @@
 // Integration tests for app/api/webhooks/ghl/route.ts
 // Uses testPrisma (real DB via setup.ts mock).
-// GHL_STAGE_MAP is set per test — no real GHL API calls.
+// GHL_STAGE_NAME_MAP is set per test — no real GHL API calls.
 
 import { describe, it, expect, beforeEach, afterAll, afterEach } from 'vitest'
 import crypto from 'crypto'
@@ -10,13 +10,22 @@ import { createOrder, updateStatus } from '@/services/orders'
 import { POST } from '@/app/api/webhooks/ghl/route'
 import { db, seedTestTenant, cleanDb } from './helpers'
 
-// GHL_STAGE_MAP used across tests
-const STAGE_MAP = {
-  INTAKE: 'ghl-stage-intake',
-  DATA_QC: 'ghl-stage-dataqc',
-  READY_TO_FILE: 'ghl-stage-rtf',
-  FILED: 'ghl-stage-filed',
-  COMPLETED: 'ghl-stage-completed',
+// GHL_STAGE_NAME_MAP: stage name → OrderStatus (mirrors the handler's env var)
+const STAGE_NAME_MAP: Record<string, string> = {
+  'New Order': 'INTAKE',
+  'Data QC': 'DATA_QC',
+  'Ready to File': 'READY_TO_FILE',
+  'Filed': 'FILED',
+  'Completed': 'COMPLETED',
+}
+
+// Reverse: OrderStatus key → stage name (for test payload building)
+const STATUS_STAGE: Record<string, string> = {
+  INTAKE: 'New Order',
+  DATA_QC: 'Data QC',
+  READY_TO_FILE: 'Ready to File',
+  FILED: 'Filed',
+  COMPLETED: 'Completed',
 }
 
 // Test signing key — set via env var in test setup, not hardcoded
@@ -27,12 +36,12 @@ let ctx: Awaited<ReturnType<typeof seedTestTenant>>
 beforeEach(async () => {
   await cleanDb()
   ctx = await seedTestTenant()
-  process.env.GHL_STAGE_MAP = JSON.stringify(STAGE_MAP)
+  process.env.GHL_STAGE_NAME_MAP = JSON.stringify(STAGE_NAME_MAP)
   delete process.env.GHL_WEBHOOK_SECRET
 })
 
 afterEach(() => {
-  delete process.env.GHL_STAGE_MAP
+  delete process.env.GHL_STAGE_NAME_MAP
   delete process.env.GHL_WEBHOOK_SECRET
 })
 
@@ -142,13 +151,12 @@ describe('event type filtering', () => {
 
 // ── Stage map handling ──────────────────────────────────────────────────────
 
-describe('unknown stageId', () => {
-  it('ignores webhook for stage not in GHL_STAGE_MAP (custom GHL stage)', async () => {
+describe('unknown stage name', () => {
+  it('ignores webhook for stage name not in GHL_STAGE_NAME_MAP (custom GHL stage)', async () => {
     const orderId = await makeOrderWithGhlOpp()
     const body = makeBody({
-      type: 'OpportunityStageUpdate',
-      opportunityId: 'opp-abc123',
-      stageId: 'ghl-custom-stage-unknown',
+      id: 'opp-abc123',
+      pipleline_stage: 'Some Custom GHL Stage',
     })
     await POST(makeRequest(body))
     const order = await db.order.findUnique({ where: { id: orderId } })
@@ -157,9 +165,8 @@ describe('unknown stageId', () => {
 
   it('returns 200 ok when no order found for opportunityId', async () => {
     const body = makeBody({
-      type: 'OpportunityStageUpdate',
-      opportunityId: 'opp-does-not-exist',
-      stageId: STAGE_MAP.DATA_QC,
+      id: 'opp-does-not-exist',
+      pipleline_stage: STATUS_STAGE.DATA_QC,
     })
     const res = await POST(makeRequest(body))
     const json = await res.json()
@@ -174,9 +181,8 @@ describe('stage change drives order status', () => {
   it('INTAKE → DATA_QC via GHL webhook', async () => {
     const orderId = await makeOrderWithGhlOpp()
     const body = makeBody({
-      type: 'OpportunityStageUpdate',
-      opportunityId: 'opp-abc123',
-      stageId: STAGE_MAP.DATA_QC,
+      id: 'opp-abc123',
+      pipleline_stage: STATUS_STAGE.DATA_QC,
     })
     await POST(makeRequest(body))
     const order = await db.order.findUnique({ where: { id: orderId } })
@@ -186,9 +192,8 @@ describe('stage change drives order status', () => {
   it('writes AuditLog with actorId=system for GHL-driven transition', async () => {
     const orderId = await makeOrderWithGhlOpp()
     const body = makeBody({
-      type: 'OpportunityStageUpdate',
-      opportunityId: 'opp-abc123',
-      stageId: STAGE_MAP.DATA_QC,
+      id: 'opp-abc123',
+      pipleline_stage: STATUS_STAGE.DATA_QC,
     })
     await POST(makeRequest(body))
     const logs = await db.auditLog.findMany({
@@ -208,9 +213,8 @@ describe('stage change drives order status', () => {
     })
     // Same stage fired again
     const body = makeBody({
-      type: 'OpportunityStageUpdate',
-      opportunityId: 'opp-abc123',
-      stageId: STAGE_MAP.DATA_QC,
+      id: 'opp-abc123',
+      pipleline_stage: STATUS_STAGE.DATA_QC,
     })
     const res = await POST(makeRequest(body))
     expect(res.status).toBe(200)
@@ -220,14 +224,14 @@ describe('stage change drives order status', () => {
 
   it('walks full lifecycle INTAKE→DATA_QC→READY_TO_FILE→FILED→COMPLETED via webhooks', async () => {
     const orderId = await makeOrderWithGhlOpp()
-    const chain: Array<{ stageId: string; expected: OrderStatus }> = [
-      { stageId: STAGE_MAP.DATA_QC, expected: OrderStatus.DATA_QC },
-      { stageId: STAGE_MAP.READY_TO_FILE, expected: OrderStatus.READY_TO_FILE },
-      { stageId: STAGE_MAP.FILED, expected: OrderStatus.FILED },
-      { stageId: STAGE_MAP.COMPLETED, expected: OrderStatus.COMPLETED },
+    const chain: Array<{ stageName: string; expected: OrderStatus }> = [
+      { stageName: STATUS_STAGE.DATA_QC, expected: OrderStatus.DATA_QC },
+      { stageName: STATUS_STAGE.READY_TO_FILE, expected: OrderStatus.READY_TO_FILE },
+      { stageName: STATUS_STAGE.FILED, expected: OrderStatus.FILED },
+      { stageName: STATUS_STAGE.COMPLETED, expected: OrderStatus.COMPLETED },
     ]
-    for (const { stageId, expected } of chain) {
-      const body = makeBody({ type: 'OpportunityStageUpdate', opportunityId: 'opp-abc123', stageId })
+    for (const { stageName, expected } of chain) {
+      const body = makeBody({ id: 'opp-abc123', pipleline_stage: stageName })
       await POST(makeRequest(body))
       const order = await db.order.findUnique({ where: { id: orderId } })
       expect(order?.status).toBe(expected)

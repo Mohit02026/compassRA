@@ -1,87 +1,132 @@
-// SunBiz entity lookup — pre-populates annual report intake form.
-// Scrapes the Florida Division of Corporations public search.
+// SunBiz entity lookup via SunBiz Daily API.
+// Endpoint: GET /api/v2/filings/{documentNumber}/
+// Same API key used for name availability search.
+
+import { getRedis } from '@/lib/redis'
 
 export interface SunbizEntity {
   name: string
   documentNumber: string
   status: string
-  filingDate: string
-  principalAddress: string
-  mailingAddress: string
+  filingDate: string       // YYYY-MM-DD (from API — no conversion needed)
+  county: string
+  principalStreet: string
+  principalCity: string
+  principalState: string
+  principalZip: string
+  principalAddress: string // composed single-line for display
+  mailingStreet: string
+  mailingCity: string
+  mailingState: string
+  mailingZip: string
+  mailingAddress: string   // composed single-line for display
   registeredAgent: string
-  registeredAgentAddress: string
 }
 
-// Look up a Florida entity by its document number (format: Lxxxxxxxx or Pxxxxxxxx).
-// Returns null if not found or on network error (caller should fall back to manual entry).
+interface ApiAddress {
+  address_1: string
+  address_2?: string
+  city: string
+  state: string
+  zip: string
+}
+
+interface ApiResponse {
+  corporation_number: string
+  corporation_name: string
+  status: string
+  file_date: string
+  county?: string
+  principal_address?: ApiAddress
+  mailing_address?: ApiAddress
+  registered_agent?: { name: string }
+}
+
+function composeAddress(a?: ApiAddress): string {
+  if (!a) return ''
+  return [a.address_1, a.address_2, a.city, a.state, a.zip].filter(Boolean).join(', ')
+}
+
+function streetLine(a?: ApiAddress): string {
+  if (!a) return ''
+  return [a.address_1, a.address_2].filter(Boolean).join(' ')
+}
+
+function mapStatus(s: string): string {
+  if (s === 'A') return 'Active'
+  if (s === 'I') return 'Inactive'
+  return s
+}
+
 export async function lookupByDocNumber(docNumber: string): Promise<SunbizEntity | null> {
-  const url = `https://search.sunbiz.org/Inquiry/CorporationSearch/GetFilingInformation?inquiryType=DocumentNumber&inquiryDirectionType=ForwardList&masterDataToListOn=${encodeURIComponent(docNumber.trim())}`
+  const key = process.env.SUNBIZ_DAILY_API_KEY
+  if (!key) {
+    console.error('[sunbiz] SUNBIZ_DAILY_API_KEY not set')
+    return null
+  }
+
+  // Redis cache — 7-day TTL (SunBiz data updates daily; 7d balances freshness vs API rate limits)
+  const redis = getRedis()
+  const cacheKey = `sunbiz:${docNumber.trim().toLowerCase()}`
+  if (redis) {
+    try {
+      const cached = await redis.get(cacheKey)
+      if (cached) return JSON.parse(cached) as SunbizEntity
+    } catch (err) {
+      console.error('[sunbiz] redis get error:', err)
+    }
+  }
+
+  const url = `https://www.sunbizdaily.com/api/v2/filings/${encodeURIComponent(docNumber.trim())}/`
 
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Compass/1.0)' },
-      next: { revalidate: 0 }, // always fresh — never cache SunBiz responses
+      headers: { 'X-API-Key': key },
+      next: { revalidate: 0 },
+      signal: AbortSignal.timeout(10000),
     })
 
-    if (!res.ok) return null
-
-    const html = await res.text()
-
-    // SunBiz is behind Cloudflare — detect challenge page
-    if (html.includes('Just a moment') || html.includes('challenge-platform') || html.includes('cf-browser-verification')) {
-      // Return a sentinel that lets callers distinguish "blocked" from "not found"
-      return 'blocked' as unknown as null
+    if (res.status === 404) return null
+    if (!res.ok) {
+      console.error(`[sunbiz] API ${res.status} for ${docNumber}`)
+      return null
     }
 
-    return parseEntityDetail(html, docNumber)
-  } catch {
+    const data: ApiResponse = await res.json()
+    const pa = data.principal_address
+    const ma = data.mailing_address
+
+    const entity: SunbizEntity = {
+      name:             data.corporation_name ?? '',
+      documentNumber:   data.corporation_number ?? docNumber,
+      status:           mapStatus(data.status ?? ''),
+      filingDate:       data.file_date ?? '',
+      county:           data.county ?? '',
+      principalStreet:  streetLine(pa),
+      principalCity:    pa?.city ?? '',
+      principalState:   pa?.state ?? '',
+      principalZip:     pa?.zip ?? '',
+      principalAddress: composeAddress(pa),
+      mailingStreet:    streetLine(ma),
+      mailingCity:      ma?.city ?? '',
+      mailingState:     ma?.state ?? '',
+      mailingZip:       ma?.zip ?? '',
+      mailingAddress:   composeAddress(ma),
+      registeredAgent:  data.registered_agent?.name?.replace(/\s+/g, ' ').trim() ?? '',
+    }
+
+    // Write to cache — don't cache null (404) so a re-registered entity is found next time
+    if (redis) {
+      try {
+        await redis.setex(cacheKey, 604800, JSON.stringify(entity))
+      } catch (err) {
+        console.error('[sunbiz] redis set error:', err)
+      }
+    }
+
+    return entity
+  } catch (err) {
+    console.error(`[sunbiz] fetch error for ${docNumber}:`, err)
     return null
   }
-}
-
-function parseEntityDetail(html: string, docNumber: string): SunbizEntity | null {
-  // [\s\S] used in place of . with s-flag (ES2018+) to match across newlines
-
-  // Extract entity name
-  const nameMatch = html.match(/<span[^>]*id="lblEntityName"[^>]*>([^<]+)<\/span>/i)
-    ?? html.match(/Entity Name[^>]*>[\s\S]{0,200}?<span[^>]*>([^<]+)<\/span>/i)
-
-  // Document number from page
-  const docMatch = html.match(/Document\s+Number[^>]*>[\s\S]{0,200}?<span[^>]*>([LP]\d{8,9})<\/span>/i)
-
-  // Status
-  const statusMatch = html.match(/Status[^>]*>[\s\S]{0,200}?<span[^>]*>(ACTIVE|INACTIVE|DISSOLVED)[^<]*<\/span>/i)
-
-  // Filing date
-  const filingMatch = html.match(/Filing\s+Date[^>]*>[\s\S]{0,200}?<span[^>]*>(\d{2}\/\d{2}\/\d{4})<\/span>/i)
-
-  // Principal address
-  const principalMatch = html.match(/Principal\s+Address[\s\S]{0,400}?<span[^>]*>([\d][^<]{10,80})<\/span>/i)
-
-  // Mailing address
-  const mailingMatch = html.match(/Mailing\s+Address[\s\S]{0,400}?<span[^>]*>([\d][^<]{10,80})<\/span>/i)
-
-  // Registered agent name
-  const raNameMatch = html.match(/Registered\s+Agent\s+Name[^>]*>[\s\S]{0,200}?<span[^>]*>([^<]+)<\/span>/i)
-
-  // Registered agent address
-  const raAddrMatch = html.match(/Registered\s+Agent\s+Address[\s\S]{0,400}?<span[^>]*>([\d][^<]{10,80})<\/span>/i)
-
-  // If we can't find basic info, return null
-  if (!nameMatch && !docMatch) return null
-
-  return {
-    name: cleanText(nameMatch?.[1] ?? ''),
-    documentNumber: cleanText(docMatch?.[1] ?? docNumber),
-    status: cleanText(statusMatch?.[1] ?? 'Unknown'),
-    filingDate: cleanText(filingMatch?.[1] ?? ''),
-    principalAddress: cleanText(principalMatch?.[1] ?? ''),
-    mailingAddress: cleanText(mailingMatch?.[1] ?? ''),
-    registeredAgent: cleanText(raNameMatch?.[1] ?? ''),
-    registeredAgentAddress: cleanText(raAddrMatch?.[1] ?? ''),
-  }
-}
-
-function cleanText(s: string): string {
-  return s.replace(/\s+/g, ' ').trim()
 }

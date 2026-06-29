@@ -93,7 +93,9 @@ export default defineConfig({
       GHL_LOCATION_ID: process.env.GHL_LOCATION_ID ?? 'loc_e2e_test_123',
       GHL_PIPELINE_ID: process.env.GHL_PIPELINE_ID ?? 'pipeline_e2e_test_456',
       GHL_STAGE_MAP: process.env.GHL_STAGE_MAP ?? '{"INTAKE":"stage_e2e_1","DATA_QC":"stage_e2e_2","READY_TO_FILE":"stage_e2e_3","FILED":"stage_e2e_4","COMPLETED":"stage_e2e_5"}',
+      GHL_STAGE_NAME_MAP: process.env.GHL_STAGE_NAME_MAP ?? '{"New Order":"INTAKE","Data QC":"DATA_QC","Ready to File":"READY_TO_FILE","Filed":"FILED","Completed":"COMPLETED"}',
       GHL_WEBHOOK_SECRET: process.env.GHL_WEBHOOK_SECRET ?? 'e2e_ghl_webhook_signing_key_local',
+      SUNBIZ_DAILY_API_KEY: process.env.SUNBIZ_DAILY_API_KEY ?? 'e2e_fake_sunbiz_daily_key',
       // Bypass next/font/google network requests during page compilation
       NEXT_FONT_GOOGLE_MOCKED_RESPONSES: fontsMockPath,
     },

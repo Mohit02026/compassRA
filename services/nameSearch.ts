@@ -1,89 +1,118 @@
-// SunBiz name availability search.
-// Scrapes HTML results — no official API exists.
-//
-// SunBiz is an alphabetical forward list, NOT a keyword search. Searching
-// "XYZZY TEST LLC" returns the 20 entities nearest alphabetically, not similar
-// names. We filter results to only surface ones that share a keyword with the
-// query — everything else is a false positive.
+// Florida LLC name availability via SunBiz Daily API.
+// Replaces the old SunBiz HTML scraper — returns structured JSON with true
+// substring matching instead of alphabetical-neighbor guessing.
+
+import { getRedis } from '@/lib/redis'
 
 export type NameAvailability = 'available' | 'taken' | 'likely' | 'unknown'
 
 export interface SunBizMatch {
   name: string
-  status: string  // 'Active' | 'INACT' | 'INACT/UA' | 'NAME HS' | 'InActive' etc.
+  status: string  // 'Active' | 'Inactive'
 }
 
 export interface NameSearchResult {
   available: NameAvailability
-  matches: SunBizMatch[]      // nearby related names to display
-  exactMatch?: SunBizMatch    // populated when the exact name is found in registry
+  matches: SunBizMatch[]
+  exactMatch?: SunBizMatch
 }
 
-// Normalize for comparison: strip punctuation, collapse whitespace.
-// SunBiz stores "SUNSHINE VENTURES, LLC" — customers type "SUNSHINE VENTURES LLC".
+// Normalize for comparison: strip punctuation, collapse whitespace, uppercase.
+// API stores "SUNSHINE VENTURES, LLC" — users type "Sunshine Ventures LLC".
 function normalize(n: string): string {
   return n.toUpperCase().replace(/[,.\-'&]/g, '').replace(/\s+/g, ' ').trim()
 }
 
-export async function searchName(name: string): Promise<NameSearchResult> {
-  const encoded = encodeURIComponent(name.trim().toUpperCase())
-  const url =
-    `https://search.sunbiz.org/Inquiry/CorporationSearch/SearchResults` +
-    `?inquiryType=EntityName&searchTerm=${encoded}&listSize=20`
+// Map API status codes to display strings the UI StatusBadge expects
+function mapStatus(raw: string): string {
+  if (raw === 'A') return 'Active'
+  if (raw === 'I') return 'Inactive'
+  return raw
+}
 
-  let html: string
+interface SunBizFiling {
+  corporation_name: string
+  status: string
+}
+
+// Strip entity suffixes so the API substring search matches stored names that
+// have commas: "Acme Holdings LLC" → search "ACME HOLDINGS", which returns
+// "ACME HOLDINGS, LLC" (stored with comma). Without this, the API misses the
+// exact match because "ACME HOLDINGS LLC" ≠ substring of "ACME HOLDINGS, LLC".
+const ENTITY_SUFFIXES = /\b(LLC|L\.L\.C\.|INC|INC\.|CORP|CORP\.|LLP|L\.L\.P\.|LTD|LTD\.|LC|L\.C\.|PA|P\.A\.|PLLC|P\.L\.L\.C\.)\s*$/i
+
+function stripSuffix(name: string): string {
+  return name.replace(ENTITY_SUFFIXES, '').trim()
+}
+
+export async function searchName(name: string): Promise<NameSearchResult> {
+  const key = process.env.SUNBIZ_DAILY_API_KEY
+  if (!key) {
+    console.error('[nameSearch] SUNBIZ_DAILY_API_KEY not set')
+    return { available: 'unknown', matches: [] }
+  }
+
+  // Search without suffix to catch comma-separated variants in the registry
+  const searchTerm = stripSuffix(name.trim().toUpperCase())
+
+  // Redis cache — 24h TTL keyed on the normalised search term
+  const redis = getRedis()
+  const cacheKey = `ns:${normalize(searchTerm)}`
+  if (redis) {
+    try {
+      const cached = await redis.get(cacheKey)
+      if (cached) return JSON.parse(cached) as NameSearchResult
+    } catch (err) {
+      console.error('[nameSearch] redis get error:', err)
+    }
+  }
+
+  const encoded = encodeURIComponent(searchTerm)
+  const url = `https://www.sunbizdaily.com/api/v2/filings/?corporation_name=${encoded}&per_page=25`
+
+  let filings: SunBizFiling[]
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      headers: { 'X-API-Key': key },
       signal: AbortSignal.timeout(10000),
     })
-    html = await res.text()
+    if (!res.ok) {
+      console.error(`[nameSearch] API returned ${res.status}`)
+      return { available: 'unknown', matches: [] }
+    }
+    const data = await res.json()
+    filings = data.filings ?? []
   } catch {
     return { available: 'unknown', matches: [] }
   }
 
-  // Parse each <tr> — extract name and status together so they stay paired
-  const entries: SunBizMatch[] = []
-  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi
-  let row: RegExpExecArray | null
-  while ((row = rowRegex.exec(html)) !== null) {
-    const rowHtml = row[1]
-    const nameMatch = rowHtml.match(/SearchResultDetail[^"]*"[^>]*>([^<]+)<\/a>/)
-    const statusMatch = rowHtml.match(/<td class="small-width">([^<]+)<\/td>/)
-    if (nameMatch && statusMatch) {
-      entries.push({
-        name: nameMatch[1].trim(),
-        status: statusMatch[1].trim(),
-      })
+  let result: NameSearchResult
+
+  if (filings.length === 0) {
+    result = { available: 'available', matches: [] }
+  } else {
+    const matches: SunBizMatch[] = filings.map((f) => ({
+      name: f.corporation_name,
+      status: mapStatus(f.status),
+    }))
+
+    const normalizedQuery = normalize(name)
+    const exact = matches.find((m) => normalize(m.name) === normalizedQuery)
+
+    result = exact
+      // Return 'taken' for both active and inactive — UI handles inactive separately
+      ? { available: 'taken', matches, exactMatch: exact }
+      : { available: 'likely', matches }
+  }
+
+  // Write to cache — skip 'unknown' (transient errors shouldn't be cached)
+  if (redis && result.available !== 'unknown') {
+    try {
+      await redis.setex(cacheKey, 86400, JSON.stringify(result))
+    } catch (err) {
+      console.error('[nameSearch] redis set error:', err)
     }
   }
 
-  if (entries.length === 0) {
-    return { available: 'available', matches: [] }
-  }
-
-  // Exact match after normalization
-  const normalizedQuery = normalize(name)
-  const exact = entries.find((e) => normalize(e.name) === normalizedQuery)
-  if (exact) {
-    return { available: 'taken', matches: entries, exactMatch: exact }
-  }
-
-  // Only flag "likely" if at least one result shares a significant keyword
-  const STOP_WORDS = new Set(['LLC', 'INC', 'CORP', 'CO', 'THE', 'AND', 'OF', 'FOR', 'LLP'])
-  const queryWords = normalizedQuery
-    .split(/\s+/)
-    .filter((w) => w.length > 2 && !STOP_WORDS.has(w))
-
-  const relatedMatches = entries.filter((e) => {
-    const mNorm = normalize(e.name)
-    return queryWords.some((w) => mNorm.includes(w))
-  })
-
-  if (relatedMatches.length === 0) {
-    // All results are alphabetical neighbors only — no real name conflict
-    return { available: 'available', matches: [] }
-  }
-
-  return { available: 'likely', matches: relatedMatches }
+  return result
 }
