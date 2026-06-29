@@ -29,166 +29,153 @@ export default function HowItWorksSection() {
   const stepRefs = useRef<(HTMLDivElement | null)[]>([])
 
   useEffect(() => {
-    function onScroll() {
-      // The "activation point" sits 40% from the top of the viewport
-      const activationY = window.scrollY + window.innerHeight * 0.4
-      let closest = 0
-      let closestDist = Infinity
-      stepRefs.current.forEach((el, i) => {
-        if (!el) return
-        const rect = el.getBoundingClientRect()
-        const stepMid = window.scrollY + rect.top + rect.height / 2
-        const dist = Math.abs(stepMid - activationY)
-        if (dist < closestDist) { closestDist = dist; closest = i }
-      })
-      setActiveStep(closest)
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    onScroll()
-    return () => window.removeEventListener('scroll', onScroll)
+    const observers: IntersectionObserver[] = []
+    stepRefs.current.forEach((el, i) => {
+      if (!el) return
+      const obs = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) setActiveStep(i) },
+        { rootMargin: '-40% 0px -40% 0px', threshold: 0 }
+      )
+      obs.observe(el)
+      observers.push(obs)
+    })
+    return () => observers.forEach(o => o.disconnect())
   }, [])
 
   return (
     <section
       style={{
-        padding: '0 40px',
+        background: 'rgb(241,242,243)',
         fontFamily: 'var(--font-dm-sans)',
+        paddingTop: 120,
       }}
     >
-      <div className="mx-auto" style={{ maxWidth: 1440, marginTop: 120 }}>
-        <h2
-          style={{
-            fontSize: 48,
-            fontWeight: 600,
-            color: 'rgb(23, 23, 23)',
-            marginBottom: 10,
-          }}
-        >
-          How it Works
-        </h2>
-        <p
-          style={{
-            fontSize: 17,
-            color: 'rgb(100, 100, 100)',
-            marginBottom: 72,
-          }}
-        >
-          Get Your Business Created in 3 Simple Steps – Fast, Secure, and Stress-Free.
-        </p>
+      <div className="mx-auto" style={{ maxWidth: 1440, padding: '0 40px' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-start">
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
-          {/* Left: sticky illustration panel */}
-          <div className="hidden lg:block" style={{ position: 'sticky', top: 96 }}>
+          {/* ── Left: sticky panel, vertically centered in viewport ── */}
+          <div
+            className="hidden lg:flex flex-col justify-center"
+            style={{ position: 'sticky', top: 0, height: '100vh' }}
+          >
+            <h2 style={{ fontSize: 48, fontWeight: 600, color: 'rgb(23,23,23)', marginBottom: 12 }}>
+              How it Works
+            </h2>
+            <p style={{ fontSize: 19, color: 'rgb(100,100,100)', marginBottom: 40 }}>
+              Get Your Business Created in 3 Simple Steps – Fast, Secure, and Stress-Free.
+            </p>
+
+            {/* Image carousel */}
             <div
               style={{
-                background: '#ffffff',
-                borderRadius: 16,
-                border: '1px solid rgb(230,232,240)',
+                borderRadius: 20,
+                boxShadow: '0 4px 32px rgba(0,0,0,0.08)',
                 overflow: 'hidden',
                 width: '100%',
                 aspectRatio: '4/3',
                 position: 'relative',
+                background: '#e8eaf0',
               }}
             >
               {STEPS.map((step, i) => (
                 <div
                   key={i}
                   style={{
-                    position: 'absolute',
-                    inset: 0,
+                    position: 'absolute', inset: 0,
                     opacity: activeStep === i ? 1 : 0,
-                    transition: 'opacity 0.45s ease',
-                    pointerEvents: activeStep === i ? 'auto' : 'none',
+                    transition: 'opacity 0.55s ease',
                   }}
                 >
                   <Image
-                    src={step.img}
-                    alt={step.title}
-                    fill
-                    style={{ objectFit: 'cover' }}
-                    sizes="580px"
-                    priority={i === 0}
+                    src={step.img} alt={step.title} fill priority
+                    style={{ objectFit: 'cover' }} sizes="640px"
                   />
                 </div>
               ))}
             </div>
 
-            {/* Step dots */}
-            <div className="flex justify-center gap-2.5" style={{ marginTop: 20 }}>
+            {/* Navigation dots */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 24 }}>
               {STEPS.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setActiveStep(i)}
                   style={{
-                    width: activeStep === i ? 24 : 8,
-                    height: 8,
-                    borderRadius: 99,
+                    width: activeStep === i ? 28 : 9, height: 9,
+                    borderRadius: 99, padding: 0, border: 'none', cursor: 'pointer',
                     background: activeStep === i ? '#3b60f3' : 'rgb(200,205,215)',
-                    border: 'none',
-                    cursor: 'pointer',
                     transition: 'all 0.3s ease',
-                    padding: 0,
                   }}
                 />
               ))}
             </div>
           </div>
 
-          {/* Right: steps */}
-          <div className="flex flex-col gap-20">
+          {/* ── Right: each step is 100vh tall, content centered ──
+              This ensures step #1 sits at viewport center when the
+              section first appears, and each subsequent step does too.
+          */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* Mobile heading */}
+            <div className="lg:hidden" style={{ padding: '80px 0 48px' }}>
+              <h2 style={{ fontSize: 40, fontWeight: 700, color: 'rgb(23,23,23)', marginBottom: 10 }}>
+                How it Works
+              </h2>
+              <p style={{ fontSize: 17, color: 'rgb(100,100,100)' }}>
+                Get Your Business Created in 3 Simple Steps – Fast, Secure, and Stress-Free.
+              </p>
+            </div>
+
             {STEPS.map((step, i) => (
               <div
                 key={step.num}
-                ref={(el) => {
-                  stepRefs.current[i] = el
-                }}
+                ref={(el) => { stepRefs.current[i] = el }}
                 style={{
-                  opacity: activeStep === i ? 1 : 0.45,
-                  transition: 'opacity 0.3s ease',
+                  minHeight: '100vh',
+                  display: 'flex',
+                  alignItems: 'center',
                 }}
               >
                 <div
                   style={{
-                    fontSize: 'clamp(52px, 6vw, 72px)',
-                    fontWeight: 800,
-                    color: activeStep === i ? '#3b60f3' : 'rgb(200,205,215)',
-                    lineHeight: 1,
-                    marginBottom: 18,
-                    letterSpacing: '-0.02em',
-                    transition: 'color 0.3s ease',
+                    opacity: activeStep === i ? 1 : 0.28,
+                    transform: activeStep === i ? 'translateX(0)' : 'translateX(-14px)',
+                    transition: 'opacity 0.4s ease, transform 0.4s ease',
                   }}
                 >
-                  #{step.num}
-                </div>
+                  {/* Step number */}
+                  <div
+                    style={{
+                      fontSize: 'clamp(60px, 7vw, 84px)',
+                      fontWeight: 800,
+                      color: activeStep === i ? '#3b60f3' : 'rgb(195,200,215)',
+                      lineHeight: 1, marginBottom: 20, letterSpacing: '-0.02em',
+                      transition: 'color 0.4s ease',
+                    }}
+                  >
+                    #{step.num}
+                  </div>
 
-                {/* Mobile: show image inline */}
-                <div className="lg:hidden" style={{ marginBottom: 20, borderRadius: 12, overflow: 'hidden', border: '1px solid rgb(230,232,240)' }}>
-                  <Image
-                    src={step.img}
-                    alt={step.title}
-                    width={600}
-                    height={450}
-                    style={{ width: '100%', height: 'auto', display: 'block' }}
-                  />
-                </div>
+                  {/* Mobile image */}
+                  <div
+                    className="lg:hidden"
+                    style={{ marginBottom: 24, borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 16px rgba(0,0,0,0.07)' }}
+                  >
+                    <Image src={step.img} alt={step.title} width={600} height={450}
+                      style={{ width: '100%', height: 'auto', display: 'block' }} />
+                  </div>
 
-                <h3
-                  style={{
-                    fontSize: 32,
-                    fontWeight: 500,
-                    color: 'rgb(23, 23, 23)',
-                    marginBottom: 14,
-                    lineHeight: 1.25,
-                  }}
-                >
-                  {step.title}
-                </h3>
-                <p style={{ fontSize: 16, lineHeight: 1.8, color: 'rgb(80, 80, 80)' }}>
-                  {step.body}
-                </p>
+                  <h3 style={{ fontSize: 36, fontWeight: 600, color: 'rgb(23,23,23)', marginBottom: 16, lineHeight: 1.25 }}>
+                    {step.title}
+                  </h3>
+                  <p style={{ fontSize: 17, lineHeight: 1.85, color: 'rgb(80,80,80)' }}>
+                    {step.body}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
+
         </div>
       </div>
     </section>

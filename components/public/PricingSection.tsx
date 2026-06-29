@@ -84,7 +84,8 @@ export default function PricingSection() {
     <section
       id="pricing"
       style={{
-        padding: '80px 40px',
+        background: 'rgb(241,242,243)',
+        padding: '100px 40px',
         fontFamily: 'var(--font-dm-sans)',
       }}
     >
@@ -110,9 +111,10 @@ export default function PricingSection() {
               className="flex flex-col"
               style={{
                 background: plan.popular ? '#3b60f3' : '#ffffff',
-                border: plan.popular ? 'none' : '1px solid rgb(220,222,230)',
-                borderRadius: 24,
-                padding: '24px',
+                border: plan.popular ? 'none' : '1px solid rgba(0,0,0,0.08)',
+                borderTop: plan.popular ? '3px solid rgba(255,255,255,0.3)' : undefined,
+                borderRadius: 16,
+                padding: '28px 28px 32px',
               }}
             >
               {/* Plan name + badge */}
@@ -130,11 +132,11 @@ export default function PricingSection() {
                 {plan.popular && (
                   <span
                     style={{
-                      background: 'rgba(255,255,255,0.9)',
+                      background: 'rgba(255,255,255,0.95)',
                       color: '#3b60f3',
                       fontSize: 11,
                       fontWeight: 700,
-                      padding: '3px 10px',
+                      padding: '2px 8px',
                       borderRadius: 99,
                       whiteSpace: 'nowrap',
                     }}

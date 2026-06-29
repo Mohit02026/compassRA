@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 
 const US_STATES = [
   'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado',
@@ -17,24 +16,22 @@ const US_STATES = [
 
 export default function StateStartWidget({ light = false }: { light?: boolean }) {
   const [state, setState] = useState('')
-  const router = useRouter()
 
   return (
     <div
-      className="flex flex-col sm:flex-row items-start sm:items-center gap-3"
-      style={{ fontFamily: 'var(--font-dm-sans)' }}
+      style={{ fontFamily: 'var(--font-dm-sans)', display: 'flex', flexDirection: 'column', gap: 11, maxWidth: 441 }}
     >
       <select
         value={state}
         onChange={(e) => setState(e.target.value)}
         style={{
-          border: light ? '1.5px solid rgba(255,255,255,0.4)' : '1px solid rgb(220, 220, 220)',
+          border: '0.8px solid rgb(224,224,224)',
           borderRadius: 8,
           padding: '12px 16px',
           fontSize: 15,
-          color: state ? (light ? '#ffffff' : 'rgb(30, 30, 30)') : (light ? 'rgba(255,255,255,0.6)' : 'rgb(130, 130, 130)'),
-          background: light ? 'rgba(255,255,255,0.12)' : '#fff',
-          minWidth: 220,
+          color: state ? 'rgb(23,23,23)' : (light ? 'rgb(23,23,23)' : 'rgb(130,130,130)'),
+          background: light ? 'rgb(255,255,255)' : '#fff',
+          width: '100%',
           outline: 'none',
           cursor: 'pointer',
         }}
@@ -45,25 +42,26 @@ export default function StateStartWidget({ light = false }: { light?: boolean })
         ))}
       </select>
       <button
-        onClick={() =>
-          router.push(`/llc${state ? `?state=${encodeURIComponent(state)}` : ''}`)
-        }
+        onClick={() => {
+          window.location.href = `/llc${state ? `?state=${encodeURIComponent(state)}` : ''}`
+        }}
         style={{
-          background: light ? '#ffffff' : '#3b60f3',
-          color: light ? '#3b60f3' : '#fff',
+          background: light ? 'transparent' : '#3b60f3',
+          color: '#ffffff',
           borderRadius: 8,
           padding: '12px 24px',
           fontSize: 15,
           fontWeight: 600,
           cursor: 'pointer',
-          border: 'none',
+          border: light ? '0.8px solid rgb(255,255,255)' : 'none',
+          width: '100%',
           transition: 'background-color 0.2s',
         }}
         onMouseOver={(e) => {
-          e.currentTarget.style.background = light ? 'rgba(255,255,255,0.9)' : '#2d4fd4'
+          e.currentTarget.style.background = light ? 'rgba(255,255,255,0.1)' : '#2d4fd4'
         }}
         onMouseOut={(e) => {
-          e.currentTarget.style.background = light ? '#ffffff' : '#3b60f3'
+          e.currentTarget.style.background = light ? 'transparent' : '#3b60f3'
         }}
       >
         Get Started

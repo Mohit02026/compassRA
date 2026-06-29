@@ -1,15 +1,16 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function PublicNav() {
   return (
     <header
       style={{
-        position: 'fixed',
+        position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         zIndex: 50,
-        background: 'transparent',
+        padding: '15px 0',
         fontFamily: 'var(--font-dm-sans)',
       }}
     >
@@ -21,52 +22,28 @@ export default function PublicNav() {
           marginRight: 'auto',
           paddingLeft: 40,
           paddingRight: 40,
-          display: 'grid',
-          gridTemplateColumns: '1fr auto 1fr',
+          display: 'flex',
           height: 57,
-          alignItems: 'stretch',
+          alignItems: 'center',
+          justifyContent: 'space-between',
         }}
       >
-        {/* Left: Logo */}
-        <div className="flex items-center">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                border: '2px solid rgba(255,255,255,0.7)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <ellipse cx="10" cy="10" rx="7" ry="5.5" stroke="white" strokeWidth="1.4" />
-                <circle cx="10" cy="10" r="2" fill="white" />
-                <line x1="10" y1="2" x2="10" y2="5" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-                <line x1="10" y1="15" x2="10" y2="18" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-                <line x1="2" y1="10" x2="5" y2="10" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-                <line x1="15" y1="10" x2="18" y2="10" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-              </svg>
-            </div>
-            <div className="flex flex-col leading-none gap-0.5">
-              <span style={{ fontWeight: 700, fontSize: 14, color: '#ffffff', letterSpacing: '0.05em' }}>
-                COMPASS
-              </span>
-              <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.06em' }}>
-                Registered Agent ™
-              </span>
-            </div>
-          </Link>
-        </div>
+        {/* Logo */}
+        <Link href="/" aria-label="Go to the main page" style={{ flexShrink: 0, display: 'block', lineHeight: 0 }}>
+          <Image
+            src="/compass-logo.svg"
+            alt="Compass Registered Agent"
+            width={215}
+            height={57}
+            priority
+          />
+        </Link>
 
         {/* Center: Nav links */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
           {[
-            { label: 'Pricing', href: '#pricing' },
-            { label: 'FAQ', href: '#faq' },
+            { label: 'Pricing', href: '/#pricing' },
+            { label: 'FAQ', href: '/faq' },
             { label: 'Blog', href: '/blog' },
           ].map(({ label, href }) => (
             <a
@@ -74,8 +51,8 @@ export default function PublicNav() {
               href={href}
               style={{
                 fontSize: 16,
-                color: 'rgba(255,255,255,0.85)',
                 fontWeight: 400,
+                color: '#ffffff',
                 textDecoration: 'none',
               }}
             >
@@ -85,14 +62,13 @@ export default function PublicNav() {
         </nav>
 
         {/* Right: Phone + Sign in */}
-        <div className="flex items-center justify-end gap-4">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
           <a
             href="tel:+17276163964"
-            className="hidden md:block"
             style={{
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'rgba(255,255,255,0.85)',
+              fontSize: 16,
+              fontWeight: 400,
+              color: '#ffffff',
               textDecoration: 'none',
             }}
           >
@@ -104,10 +80,15 @@ export default function PublicNav() {
               fontSize: 16,
               fontWeight: 400,
               color: '#ffffff',
-              border: '0.8px solid rgb(255,255,255)',
+              border: '0.8px solid rgb(255, 255, 255)',
               borderRadius: 8,
               padding: '14px 24px',
               textDecoration: 'none',
+              lineHeight: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background-color 0.3s, color 0.3s, border-color 0.3s',
             }}
           >
             Sign in

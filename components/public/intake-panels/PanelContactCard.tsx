@@ -1,3 +1,5 @@
+'use client'
+
 interface PanelContactCardProps {
   firstName: string
   lastName: string
@@ -5,113 +7,130 @@ interface PanelContactCardProps {
   phone: string
 }
 
-function CheckMark({ show }: { show: boolean }) {
-  return (
-    <span
-      style={{
-        width: 18,
-        height: 18,
-        borderRadius: '50%',
-        background: show ? '#22c55e' : 'rgb(230,232,236)',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-        transition: 'background 0.2s',
-      }}
-    >
-      {show && (
-        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-          <path d="M1 4l3 3 5-6" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      )}
-    </span>
-  )
-}
-
 export default function PanelContactCard({ firstName, lastName, email, phone }: PanelContactCardProps) {
   const rows = [
-    { label: 'First name', value: firstName, show: firstName.trim().length > 0 },
-    { label: 'Last name', value: lastName, show: lastName.trim().length > 0 },
-    { label: 'Email', value: email, show: email.includes('@') },
-    { label: 'Phone', value: phone, show: phone.replace(/\D/g, '').length >= 10 },
+    { label: 'First name', value: firstName, y: 65, valid: firstName.trim().length > 0 },
+    { label: 'Last name', value: lastName, y: 127, valid: lastName.trim().length > 0 },
+    { label: 'Email', value: email, y: 189, valid: email.includes('@') },
+    { label: 'Phone', value: phone, y: 251, valid: phone.replace(/\D/g, '').length >= 10 },
   ]
 
   return (
-    <div
-      style={{
-        background: '#ffffff',
-        borderRadius: 16,
-        border: '1px solid rgb(230, 232, 236)',
-        padding: 32,
-        minHeight: 340,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      {/* Avatar */}
-      <div
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: '50%',
-          background: 'rgb(240, 244, 255)',
-          border: '2px solid rgb(200, 210, 240)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 20,
-          fontSize: 28,
-        }}
-      >
-        👤
-      </div>
+    <div style={{ width: 555, height: 378, borderRadius: 24, background: 'var(--color-bg)', position: 'relative' }}>
+      <div style={{ position: 'absolute', top: 8, right: 8, bottom: 8, left: 8, borderRadius: 20, overflow: 'hidden', background: '#f6f7f8' }}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="539" height="362" viewBox="0 0 539 362" fill="none">
+          <defs>
+            <clipPath id="step3-clip">
+              <rect width="539" height="362" fill="#fff" rx="16" />
+            </clipPath>
+            <filter id="step3-shadow" width="623" height="517" x="-42" y="18" colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse">
+              <feFlood floodOpacity="0" result="BackgroundImageFix" />
+              <feColorMatrix in="SourceAlpha" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" />
+              <feOffset dy="9" />
+              <feGaussianBlur stdDeviation="10" />
+              <feColorMatrix values="0 0 0 0 0.709804 0 0 0 0 0.709804 0 0 0 0 0.709804 0 0 0 0.05 0" />
+              <feBlend in2="BackgroundImageFix" result="effect1_dropShadow" />
+              <feColorMatrix in="SourceAlpha" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" />
+              <feOffset dy="36" />
+              <feGaussianBlur stdDeviation="18" />
+              <feColorMatrix values="0 0 0 0 0.709804 0 0 0 0 0.709804 0 0 0 0 0.709804 0 0 0 0.04 0" />
+              <feBlend in2="effect1_dropShadow" result="effect2_dropShadow" />
+              <feColorMatrix in="SourceAlpha" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" />
+              <feOffset dy="81" />
+              <feGaussianBlur stdDeviation="24.5" />
+              <feColorMatrix values="0 0 0 0 0.709804 0 0 0 0 0.709804 0 0 0 0 0.709804 0 0 0 0.03 0" />
+              <feBlend in2="effect2_dropShadow" result="effect3_dropShadow" />
+              <feColorMatrix in="SourceAlpha" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" />
+              <feOffset dy="144" />
+              <feGaussianBlur stdDeviation="28.5" />
+              <feColorMatrix values="0 0 0 0 0.709804 0 0 0 0 0.709804 0 0 0 0 0.709804 0 0 0 0.01 0" />
+              <feBlend in2="effect3_dropShadow" result="effect4_dropShadow" />
+              <feBlend in="SourceGraphic" in2="effect4_dropShadow" result="shape" />
+            </filter>
+          </defs>
 
-      {/* Contact card */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: 320,
-          background: 'rgb(247, 248, 252)',
-          borderRadius: 12,
-          border: '1px solid rgb(220, 224, 236)',
-          overflow: 'hidden',
-        }}
-      >
-        {rows.map((row, i) => (
-          <div
-            key={row.label}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 16px',
-              borderBottom: i < rows.length - 1 ? '1px solid rgb(220,224,236)' : 'none',
-              gap: 12,
-            }}
-          >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 10, color: 'rgb(140,140,140)', fontFamily: 'var(--font-dm-sans)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {row.label}
-              </p>
-              <p
-                style={{
-                  fontSize: 14,
-                  color: row.value.trim() ? 'rgb(30,30,30)' : 'rgb(190,192,196)',
-                  fontFamily: 'var(--font-dm-sans)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {row.value.trim() || '—'}
-              </p>
-            </div>
-            <CheckMark show={row.show} />
-          </div>
-        ))}
+          <g clipPath="url(#step3-clip)">
+            {/* Background */}
+            <rect width="539" height="362" fill="#f6f7f8" rx="16" />
+
+            {/* White card with layered shadow */}
+            <g filter="url(#step3-shadow)">
+              <rect width="509" height="305" x="15" y="29" fill="#fff" rx="24" />
+            </g>
+
+            {/* Person avatar circle */}
+            <circle cx="76" cy="90" r="37" fill="#f5f7fe" />
+            <path stroke="#3b60f3" d="M70.669 82a5.333 5.333 0 1 0 10.667 0 5.333 5.333 0 0 0-10.667 0ZM86.664 97.333c0 3.314 0 6-10.666 6s-10.667-2.686-10.667-6 4.776-6 10.667-6c5.89 0 10.666 2.687 10.666 6Z" />
+
+            {/* Field rows */}
+            {rows.map((row) => (
+              <g key={row.label}>
+                {/* Field background rect */}
+                <rect width="369" height="53" x="125" y={row.y} fill="#f5f7fe" rx="16" />
+
+                {/* Field text via foreignObject */}
+                <foreignObject x="125" y={row.y} width="369" height="53">
+                  <div
+                    // @ts-expect-error xmlns required for foreignObject
+                    xmlns="http://www.w3.org/1999/xhtml"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      padding: '0 16px',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <span style={{
+                      fontSize: 10,
+                      fontFamily: 'var(--font-dm-sans), DM Sans, sans-serif',
+                      color: 'rgb(140,140,140)',
+                      textTransform: 'uppercase' as const,
+                      letterSpacing: '0.06em',
+                      lineHeight: 1,
+                      marginBottom: 3,
+                    }}>
+                      {row.label}
+                    </span>
+                    <span style={{
+                      fontSize: 14,
+                      fontFamily: 'var(--font-dm-sans), DM Sans, sans-serif',
+                      color: row.value.trim() ? 'rgb(30,30,30)' : 'rgb(180,180,180)',
+                      lineHeight: 1,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap' as const,
+                    }}>
+                      {row.value.trim() || '—'}
+                    </span>
+                  </div>
+                </foreignObject>
+
+                {/* Green check mark — shows when valid */}
+                {row.valid && (
+                  <g>
+                    <path
+                      stroke="#27c250"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d={`M472 ${row.y + 27}a10.002 10.002 0 0 0 17.071 7.071A10.002 10.002 0 0 0 482 ${row.y + 17}a10 10 0 0 0-10 10`}
+                    />
+                    <path
+                      stroke="#27c250"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d={`m479 ${row.y + 27} 2 2 4-4`}
+                    />
+                  </g>
+                )}
+              </g>
+            ))}
+          </g>
+        </svg>
       </div>
     </div>
   )

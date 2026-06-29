@@ -1,31 +1,59 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function HeroSection() {
   return (
     <section
       style={{
-        height: 800,
-        backgroundImage:
-          'linear-gradient(rgba(8,10,20,0.62) 0%, rgba(8,10,20,0.75) 100%), url(/hero-bg.webp)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
+        position: 'relative',
+        minHeight: 800,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         textAlign: 'center',
         fontFamily: 'var(--font-dm-sans)',
+        overflow: 'hidden',
       }}
     >
-      <div style={{ maxWidth: 1440, width: '100%', padding: '0 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 17 }}>
+      {/* Background image as <img> */}
+      <Image
+        src="/hero-bg.webp"
+        alt=""
+        fill
+        priority
+        style={{ objectFit: 'cover', zIndex: 0 }}
+        sizes="100vw"
+      />
+      {/* Overlay — matches reference: dark navy gradient, not black */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(180deg, rgba(10,10,41,0.33) 0%, rgba(10,10,41,0.50) 56.44%)',
+          zIndex: 1,
+        }}
+      />
+      {/* Content */}
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 2,
+          maxWidth: 1440,
+          width: '100%',
+          padding: '0 40px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 17,
+        }}
+      >
         <h1
           style={{
             fontSize: 60,
-            fontWeight: 700,
+            fontWeight: 600,
             color: '#ffffff',
-            lineHeight: '78px',
+            lineHeight: 1.2,
             margin: 0,
-            letterSpacing: '-0.02em',
           }}
         >
           Start Your Business in Minutes
@@ -33,7 +61,7 @@ export default function HeroSection() {
         <p
           style={{
             fontSize: 24,
-            fontWeight: 400,
+            fontWeight: 500,
             color: 'rgb(255,255,255)',
             maxWidth: 670,
             margin: 0,
@@ -45,6 +73,7 @@ export default function HeroSection() {
         </p>
         <Link
           href="/llc"
+          className="lp-cta-btn"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -52,11 +81,12 @@ export default function HeroSection() {
             background: '#3b60f3',
             color: '#ffffff',
             borderRadius: 8,
-            padding: '14px 24px',
+            padding: '0 40px',
+            height: 70,
+            minWidth: 418,
             fontWeight: 600,
             fontSize: 16,
             textDecoration: 'none',
-            width: 418,
           }}
         >
           Start My Business

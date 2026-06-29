@@ -1,51 +1,59 @@
-'use client'
-
-import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
-
 interface FaqItem {
   question: string
   answer: string
 }
 
 export default function FaqAccordion({ items }: { items: FaqItem[] }) {
-  const [open, setOpen] = useState<number | null>(0)
-
   return (
-    <div style={{ fontFamily: 'var(--font-dm-sans)' }}>
+    <div style={{ fontFamily: 'var(--font-dm-sans)', display: 'flex', flexDirection: 'column', gap: 8 }}>
       {items.map((item, i) => (
-        <div key={i} style={{ borderBottom: '1px solid rgb(220, 220, 220)' }}>
-          <button
-            onClick={() => setOpen(open === i ? null : i)}
-            className="w-full flex items-center justify-between py-4 text-left"
+        <details
+          key={i}
+          open={i === 0}
+          style={{
+            background: '#ffffff',
+            borderRadius: 12,
+            padding: '20px 24px',
+            border: '1px solid rgb(230,230,230)',
+          }}
+        >
+          <summary
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: 'rgb(23, 23, 23)',
+              cursor: 'pointer',
+              listStyle: 'none',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 16,
+            }}
           >
-            <span style={{ fontSize: 15, fontWeight: 500, color: 'rgb(30, 30, 30)' }}>
-              {item.question}
-            </span>
-            <ChevronDown
-              size={18}
+            {item.question}
+            <span
               style={{
                 color: '#3b60f3',
+                fontSize: 22,
                 flexShrink: 0,
-                marginLeft: 16,
-                transform: open === i ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.2s',
-              }}
-            />
-          </button>
-          {open === i && (
-            <div
-              style={{
-                paddingBottom: 16,
-                fontSize: 14,
-                lineHeight: 1.75,
-                color: 'rgb(76, 76, 76)',
+                lineHeight: 1,
+                fontWeight: 300,
               }}
             >
-              {item.answer}
-            </div>
-          )}
-        </div>
+              +
+            </span>
+          </summary>
+          <div
+            style={{
+              paddingTop: 16,
+              fontSize: 14,
+              lineHeight: 1.75,
+              color: 'rgb(76, 76, 76)',
+            }}
+          >
+            {item.answer}
+          </div>
+        </details>
       ))}
     </div>
   )
