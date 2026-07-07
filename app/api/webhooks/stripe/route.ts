@@ -1,8 +1,15 @@
 // Stripe → Compass webhook receiver.
 // Handles payment_intent.succeeded → confirms payment + pushes to GHL.
 // Handles payment_intent.payment_failed → audit log + ops alert.
+// Handles payment_intent.canceled → audit log + ops alert (abandoned/expired checkout).
+// Handles payment_intent.processing → audit log only (async payment methods, e.g. ACH).
 // Handles charge.dispute.created → audit log + ops alert.
+// Handles charge.dispute.closed → audit log + ops alert (won/lost outcome).
 // Handles charge.refunded → audit log + ops alert.
+// Handles radar.early_fraud_warning.created → ops alert (hold documents pending review).
+//
+// NOTE: these event types must also be enabled on the webhook endpoint in the Stripe Dashboard —
+// adding a handler here does not subscribe to the event server-side.
 //
 // Idempotency: WebhookEvent table prevents duplicate processing.
 
@@ -47,10 +54,18 @@ export async function POST(req: NextRequest) {
       await handlePaymentSucceeded(event.data.object as Stripe.PaymentIntent)
     } else if (event.type === 'payment_intent.payment_failed') {
       await handlePaymentFailed(event.data.object as Stripe.PaymentIntent)
+    } else if (event.type === 'payment_intent.canceled') {
+      await handlePaymentCanceled(event.data.object as Stripe.PaymentIntent)
+    } else if (event.type === 'payment_intent.processing') {
+      await handlePaymentProcessing(event.data.object as Stripe.PaymentIntent)
     } else if (event.type === 'charge.dispute.created') {
       await handleDisputeCreated(event.data.object as Stripe.Dispute)
+    } else if (event.type === 'charge.dispute.closed') {
+      await handleDisputeClosed(event.data.object as Stripe.Dispute)
     } else if (event.type === 'charge.refunded') {
       await handleChargeRefunded(event.data.object as Stripe.Charge)
+    } else if (event.type === 'radar.early_fraud_warning.created') {
+      await handleEarlyFraudWarning(event.data.object as Stripe.Radar.EarlyFraudWarning)
     }
     // Mark processed — even if we didn't handle this event type
     await prisma.webhookEvent.create({
@@ -136,6 +151,51 @@ async function handlePaymentFailed(intent: Stripe.PaymentIntent): Promise<void> 
   console.log(`[Stripe webhook] Payment failed for order ${order.id}`)
 }
 
+async function handlePaymentCanceled(intent: Stripe.PaymentIntent): Promise<void> {
+  const order = await prisma.order.findFirst({
+    where: { paymentRef: intent.id, deletedAt: null },
+  })
+  if (!order) return
+
+  await prisma.auditLog.create({
+    data: {
+      tenantId: order.tenantId,
+      actorId: 'system',
+      entityType: 'Order',
+      entityId: order.id,
+      action: 'PAYMENT_CANCELED',
+      meta: { paymentIntentId: intent.id, amount: intent.amount, reason: intent.cancellation_reason ?? 'unknown' },
+    },
+  })
+
+  void sendOpsAlert({
+    subject: `Payment canceled — order ${order.id}`,
+    body: `PaymentIntent ${intent.id} was canceled for order ${order.id} (never completed checkout).\nAmount: $${(intent.amount / 100).toFixed(2)}\nReason: ${intent.cancellation_reason ?? 'unknown'}\n\nThis order has no confirmed payment and will remain in INTAKE — safe to ignore unless the customer expected to be charged.`,
+  })
+
+  console.log(`[Stripe webhook] Payment canceled for order ${order.id}`)
+}
+
+async function handlePaymentProcessing(intent: Stripe.PaymentIntent): Promise<void> {
+  const order = await prisma.order.findFirst({
+    where: { paymentRef: intent.id, deletedAt: null },
+  })
+  if (!order) return
+
+  await prisma.auditLog.create({
+    data: {
+      tenantId: order.tenantId,
+      actorId: 'system',
+      entityType: 'Order',
+      entityId: order.id,
+      action: 'PAYMENT_PROCESSING',
+      meta: { paymentIntentId: intent.id, amount: intent.amount, paymentMethod: intent.payment_method_types?.[0] ?? 'unknown' },
+    },
+  })
+
+  console.log(`[Stripe webhook] Payment processing for order ${order.id} (async payment method)`)
+}
+
 async function handleDisputeCreated(dispute: Stripe.Dispute): Promise<void> {
   const paymentIntentId = typeof dispute.payment_intent === 'string'
     ? dispute.payment_intent
@@ -167,6 +227,37 @@ async function handleDisputeCreated(dispute: Stripe.Dispute): Promise<void> {
   console.log(`[Stripe webhook] Dispute ${dispute.id} on order ${order.id}`)
 }
 
+async function handleDisputeClosed(dispute: Stripe.Dispute): Promise<void> {
+  const paymentIntentId = typeof dispute.payment_intent === 'string'
+    ? dispute.payment_intent
+    : dispute.payment_intent?.id
+
+  if (!paymentIntentId) return
+
+  const order = await prisma.order.findFirst({
+    where: { paymentRef: paymentIntentId, deletedAt: null },
+  })
+  if (!order) return
+
+  await prisma.auditLog.create({
+    data: {
+      tenantId: order.tenantId,
+      actorId: 'system',
+      entityType: 'Order',
+      entityId: order.id,
+      action: 'DISPUTE_CLOSED',
+      meta: { disputeId: dispute.id, amount: dispute.amount, status: dispute.status },
+    },
+  })
+
+  void sendOpsAlert({
+    subject: `Dispute ${dispute.status} — order ${order.id}`,
+    body: `The chargeback dispute on order ${order.id} was closed.\nDispute ID: ${dispute.id}\nOutcome: ${dispute.status}\nAmount: $${(dispute.amount / 100).toFixed(2)}\n\n${dispute.status === 'lost' ? 'Funds were returned to the customer — verify document delivery status.' : 'Review in Stripe dashboard for details.'}`,
+  })
+
+  console.log(`[Stripe webhook] Dispute ${dispute.id} closed (${dispute.status}) on order ${order.id}`)
+}
+
 async function handleChargeRefunded(charge: Stripe.Charge): Promise<void> {
   const paymentIntentId = typeof charge.payment_intent === 'string'
     ? charge.payment_intent
@@ -196,4 +287,36 @@ async function handleChargeRefunded(charge: Stripe.Charge): Promise<void> {
   })
 
   console.log(`[Stripe webhook] Refund on order ${order.id}`)
+}
+
+async function handleEarlyFraudWarning(warning: Stripe.Radar.EarlyFraudWarning): Promise<void> {
+  const chargeId = typeof warning.charge === 'string' ? warning.charge : warning.charge?.id
+  const paymentIntentId = typeof warning.payment_intent === 'string'
+    ? warning.payment_intent
+    : warning.payment_intent?.id
+
+  if (!paymentIntentId) return
+
+  const order = await prisma.order.findFirst({
+    where: { paymentRef: paymentIntentId, deletedAt: null },
+  })
+  if (!order) return
+
+  await prisma.auditLog.create({
+    data: {
+      tenantId: order.tenantId,
+      actorId: 'system',
+      entityType: 'Order',
+      entityId: order.id,
+      action: 'EARLY_FRAUD_WARNING',
+      meta: { warningId: warning.id, chargeId, fraudType: warning.fraud_type },
+    },
+  })
+
+  void sendOpsAlert({
+    subject: `⚠ Fraud warning — order ${order.id}`,
+    body: `Stripe flagged a fraud risk on order ${order.id}.\nWarning ID: ${warning.id}\nFraud type: ${warning.fraud_type}\nCharge: ${chargeId ?? 'unknown'}\n\nHOLD document delivery and filing until this is reviewed. Check the Stripe dashboard for details.`,
+  })
+
+  console.log(`[Stripe webhook] Early fraud warning on order ${order.id}`)
 }

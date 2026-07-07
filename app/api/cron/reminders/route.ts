@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { processReminders } from '@/services/reminders'
+
+function isValidCronSecret(provided: string | null): boolean {
+  const expected = process.env.CRON_SECRET
+  if (!provided || !expected) return false
+
+  const providedBuf = Buffer.from(provided)
+  const expectedBuf = Buffer.from(expected)
+  if (providedBuf.length !== expectedBuf.length) return false
+  return timingSafeEqual(providedBuf, expectedBuf)
+}
 
 // Called daily at 9am ET by an external scheduler (Railway cron or similar).
 // Protected by CRON_SECRET — never expose this route publicly without the header.
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get('x-cron-secret')
-  if (!secret || secret !== process.env.CRON_SECRET) {
+  if (!isValidCronSecret(req.headers.get('x-cron-secret'))) {
     return NextResponse.json({ error: { code: 401, message: 'Unauthorized' } }, { status: 401 })
   }
 

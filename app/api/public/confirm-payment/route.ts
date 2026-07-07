@@ -9,12 +9,21 @@ import { prisma } from '@/lib/prisma'
 import { stripe } from '@/lib/stripe'
 import { pushOrderToGHL } from '@/services/ghl'
 import { PaymentStatus } from '@prisma/client'
+import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 
 const schema = z.object({
   paymentIntentId: z.string().startsWith('pi_'),
 })
 
 export async function POST(req: NextRequest) {
+  const limited = await checkRateLimit(`confirm-payment:${getClientIp(req.headers)}`, 20, 3600)
+  if (!limited.success) {
+    return NextResponse.json(
+      { error: { code: 429, message: 'Too many requests. Please try again later.' } },
+      { status: 429 }
+    )
+  }
+
   let body: unknown
   try {
     body = await req.json()

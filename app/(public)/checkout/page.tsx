@@ -467,11 +467,24 @@ export default function CheckoutPage() {
     if (acct.password !== acct.confirm) { setAcctError('Passwords do not match.'); return }
     setAcctError('')
     setApiLoading(true)
+
+    // Business info section 2 collects street/city/state/zip + mailing separately from the
+    // upstream intake form's payload — must be merged in, or principalAddress/mailingAddress
+    // reach createOrder as whatever the upstream page set (often empty).
+    const principalAddress = [biz.street, biz.city, biz.state, biz.zip].filter(Boolean).join(', ')
+    const organizerName = `${biz.ownerFirst} ${biz.ownerLast}`.trim()
+
     try {
       const r = await fetch('/api/public/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, password: acct.password }),
+        body: JSON.stringify({
+          ...payload,
+          password: acct.password,
+          principalAddress: principalAddress || payload.principalAddress,
+          mailingAddress: biz.mailingAddress || principalAddress || payload.mailingAddress,
+          organizerName: organizerName || payload.organizerName,
+        }),
       })
       const json = await r.json() as { data?: { clientSecret: string }; error?: { message?: string } }
       if (json.error) {
