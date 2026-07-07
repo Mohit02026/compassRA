@@ -21,11 +21,17 @@ const NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
   { href: '/portal/account',   icon: Settings,        label: 'Account'   },
 ]
 
-export function PortalNavLinks() {
+export function PortalNavLinks({ vertical = false }: { vertical?: boolean }) {
   const pathname = usePathname()
 
   return (
-    <nav style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 24 }}>
+    <nav
+      style={
+        vertical
+          ? { display: 'flex', flexDirection: 'column', gap: 4 }
+          : { display: 'flex', alignItems: 'center', gap: 4, marginLeft: 24 }
+      }
+    >
       {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
         const active = pathname.startsWith(href)
         return (

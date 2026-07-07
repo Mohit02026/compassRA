@@ -66,7 +66,7 @@ export default function OpsDashboard() {
   return (
     <div>
       {/* Page header */}
-      <div className="flex items-center justify-between mb-7">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--color-navy-mid)', fontFamily: 'var(--font-inter)' }}>
             Dashboard
@@ -85,7 +85,7 @@ export default function OpsDashboard() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-4 gap-4 mb-7">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-7">
         <KpiCard
           label="Total Orders"
           value={stats?.total ?? 0}
@@ -133,7 +133,7 @@ export default function OpsDashboard() {
             View all <ArrowRight size={12} />
           </Link>
         </div>
-        <div className="grid grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
           {PIPELINE_STAGES.map((stage) => (
             <Link
               key={stage}

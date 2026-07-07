@@ -30,6 +30,7 @@ export default function IntakeLayout({
     >
       {/* Header — 57px, matches reference exactly */}
       <div
+        className="px-5 md:px-20"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -37,8 +38,6 @@ export default function IntakeLayout({
           height: 57,
           background: 'rgb(241, 242, 243)',
           borderBottom: '1px solid rgb(228, 230, 234)',
-          paddingLeft: 80,
-          paddingRight: 80,
           flexShrink: 0,
         }}
       >
@@ -91,7 +90,7 @@ export default function IntakeLayout({
       {/* Content area — extracted from compassregisteredagent.com .base-container
           { max-width:1440px; padding-inline:40px; margin-inline:auto } — padding INSIDE the max-width */}
       <div style={{ flex: 1, paddingBottom: 60 }}>
-        <div style={{ maxWidth: 1440, margin: '0 auto', padding: '0 40px' }}>
+        <div className="px-5 md:px-10" style={{ maxWidth: 1440, margin: '0 auto' }}>
 
           {/* Back link — only renders when provided, no extra space otherwise */}
           {hasBack && (
@@ -132,14 +131,17 @@ export default function IntakeLayout({
             </div>
           )}
 
-          {/* Two-column layout */}
+          {/* Two-column layout — single column below lg; the two-track grid only
+              applies at lg+ where the right panel is actually visible. Without this,
+              CSS Grid still reserves ~50% width for the hidden right-panel track
+              (equal-distribution of leftover space between un-maxed tracks), squeezing
+              main content into half the viewport on mobile/tablet. */}
           <div
+            className={rightPanel ? 'grid grid-cols-1 lg:[grid-template-columns:minmax(0,670px)_minmax(0,555px)] lg:justify-between' : ''}
             style={{
-              display: rightPanel ? 'grid' : 'block',
-              gridTemplateColumns: 'minmax(0, 670px) minmax(0, 555px)',
+              display: rightPanel ? undefined : 'block',
               gap: 20,
               alignItems: 'start',
-              justifyContent: 'space-between',
               paddingTop: 19,
             }}
           >

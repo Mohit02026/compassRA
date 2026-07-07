@@ -235,7 +235,7 @@ function Step1FindLLC({ llcName, tradeName, docNumber, sunbizState, onDocNumber,
           <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgb(60,60,60)', marginBottom: 6, fontFamily: 'var(--font-dm-sans)' }}>
             FL Document Number
           </label>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex-col sm:flex-row" style={{ display: 'flex', gap: 8 }}>
             <input
               type="text" value={docNumber} onChange={(e) => onDocNumber(e.target.value)} placeholder="L25000307072"
               style={{ flex: 1, padding: '15px 16px', borderRadius: 8, border: '1px solid rgb(224, 224, 224)', fontSize: 16, fontFamily: 'var(--font-dm-sans)', color: 'rgb(23,23,23)', outline: 'none', background: '#ffffff', boxSizing: 'border-box', transition: 'border-color 0.5s ease' }}
@@ -245,6 +245,7 @@ function Step1FindLLC({ llcName, tradeName, docNumber, sunbizState, onDocNumber,
             <button
               type="button" onClick={onLookup}
               disabled={!docNumber.trim() || sunbizState === 'loading'}
+              className="justify-center sm:justify-start"
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '15px 18px', borderRadius: 8, border: '1px solid rgb(59,96,243)', background: 'rgb(248,249,252)', color: 'rgb(59,96,243)', fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-dm-sans)', cursor: 'pointer', whiteSpace: 'nowrap', opacity: (!docNumber.trim() || sunbizState === 'loading') ? 0.4 : 1 }}
             >
               {sunbizState === 'loading' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}

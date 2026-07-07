@@ -35,12 +35,12 @@ export default function HeroSection() {
       />
       {/* Content */}
       <div
+        className="px-5 md:px-10"
         style={{
           position: 'relative',
           zIndex: 2,
           maxWidth: 1440,
           width: '100%',
-          padding: '0 40px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -48,8 +48,8 @@ export default function HeroSection() {
         }}
       >
         <h1
+          className="text-[36px] md:text-[60px]"
           style={{
-            fontSize: 60,
             fontWeight: 600,
             color: '#ffffff',
             lineHeight: 1.2,
@@ -59,13 +59,13 @@ export default function HeroSection() {
           Start Your Business in Minutes
         </h1>
         <p
+          className="text-[18px] md:text-[24px]"
           style={{
-            fontSize: 24,
             fontWeight: 500,
             color: 'rgb(255,255,255)',
             maxWidth: 670,
             margin: 0,
-            lineHeight: '31.2px',
+            lineHeight: 1.3,
           }}
         >
           Create your business effortlessly. Our streamlined process ensures
@@ -73,7 +73,7 @@ export default function HeroSection() {
         </p>
         <Link
           href="/llc"
-          className="lp-cta-btn"
+          className="w-full md:w-auto md:min-w-[418px]"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -83,7 +83,6 @@ export default function HeroSection() {
             borderRadius: 8,
             padding: '0 40px',
             height: 70,
-            minWidth: 418,
             fontWeight: 600,
             fontSize: 16,
             textDecoration: 'none',

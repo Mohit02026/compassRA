@@ -40,7 +40,7 @@ export default function HomePage() {
       <PricingSection />
 
       {/* Additional services — EIN and Annual Report */}
-      <section style={{ background: 'rgb(241,242,243)', padding: '100px 40px 0', fontFamily: 'var(--font-dm-sans)' }}>
+      <section className="px-5 md:px-10" style={{ background: 'rgb(241,242,243)', padding: '100px 0 0', fontFamily: 'var(--font-dm-sans)' }}>
         <div style={{ maxWidth: 1360, marginLeft: 'auto', marginRight: 'auto' }}>
           <h2 style={{ fontSize: 34, fontWeight: 700, color: 'rgb(15,15,15)', marginBottom: 8 }}>
             More ways we can help
@@ -48,7 +48,7 @@ export default function HomePage() {
           <p style={{ fontSize: 16, color: 'rgb(80,80,80)', lineHeight: 1.6, marginBottom: 36 }}>
             Beyond LLC formation — every service your business needs.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 20 }}>
             {/* EIN card */}
             <div style={{ background: '#ffffff', borderRadius: 20, border: '1px solid #E0E0E0', padding: '36px 40px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(59,96,243,0.08)', borderRadius: 100, padding: '4px 12px', alignSelf: 'flex-start', marginBottom: 20 }}>
@@ -92,11 +92,11 @@ export default function HomePage() {
       </section>
 
       {/* Talk to a specialist — compact blue card */}
-      <section style={{ background: 'rgb(241,242,243)', padding: '100px 40px 0', fontFamily: 'var(--font-dm-sans)' }}>
+      <section className="px-5 md:px-10" style={{ background: 'rgb(241,242,243)', padding: '100px 0 0', fontFamily: 'var(--font-dm-sans)' }}>
         <div style={{ maxWidth: 1360, marginLeft: 'auto', marginRight: 'auto' }}>
-          <div style={{ background: '#3b60f3', borderRadius: 24, overflow: 'hidden', height: 220, display: 'flex', alignItems: 'stretch' }}>
+          <div className="flex-col md:flex-row md:h-[220px]" style={{ background: '#3b60f3', borderRadius: 24, overflow: 'hidden', display: 'flex', alignItems: 'stretch' }}>
             {/* Left text */}
-            <div style={{ flex: '0 0 52%', padding: '40px 52px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div className="md:flex-[0_0_52%]" style={{ padding: '40px 32px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <h2 style={{ fontSize: 34, fontWeight: 700, color: '#ffffff', lineHeight: 1.2, marginBottom: 10 }}>
                 Talk to a specialist
               </h2>
@@ -118,8 +118,8 @@ export default function HomePage() {
                 +1 (727) 616-3964
               </a>
             </div>
-            {/* Right: photo with left-edge fade into blue */}
-            <div style={{ flex: 1, position: 'relative' }}>
+            {/* Right: photo with left-edge fade into blue — hidden on mobile, image is decorative */}
+            <div className="hidden md:block md:flex-1" style={{ position: 'relative' }}>
               <Image
                 src="/cta-photo.webp"
                 alt="Specialist on call"
@@ -139,10 +139,10 @@ export default function HomePage() {
       </section>
 
       {/* More than half a century — on page background, no card */}
-      <section style={{ background: 'rgb(241,242,243)', padding: '100px 40px', fontFamily: 'var(--font-dm-sans)' }}>
-        <div style={{ maxWidth: 1360, marginLeft: 'auto', marginRight: 'auto', display: 'flex', alignItems: 'center', gap: 80 }}>
+      <section className="px-5 md:px-10" style={{ background: 'rgb(241,242,243)', padding: '100px 0', fontFamily: 'var(--font-dm-sans)' }}>
+        <div className="flex-col lg:flex-row" style={{ maxWidth: 1360, marginLeft: 'auto', marginRight: 'auto', display: 'flex', alignItems: 'center', gap: 40 }}>
           {/* Left: text */}
-          <div style={{ flex: '0 0 54%' }}>
+          <div className="lg:flex-[0_0_54%]">
             <h2 style={{ fontSize: 48, fontWeight: 600, color: 'rgb(15,15,15)', lineHeight: 1.2, marginBottom: 20 }}>
               More than half a century of combined experience
             </h2>
@@ -150,8 +150,8 @@ export default function HomePage() {
               We&apos;ve helped thousands of businesses launch and grow with confidence — from first-time founders to seasoned entrepreneurs. Our team brings decades of expertise to guide you through every step. Simple, reliable and built for real results.
             </p>
           </div>
-          {/* Right: compass graphic — white card */}
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          {/* Right: compass graphic — white card, hidden below lg (needs 420px min, decorative not essential content) */}
+          <div className="hidden lg:flex" style={{ flex: 1, justifyContent: 'center' }}>
             <div style={{ background: '#ffffff', borderRadius: 20, padding: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ position: 'relative', width: 340, height: 340 }}>
                 {[170, 127, 86, 45].map((r, i) => (
@@ -203,15 +203,15 @@ export default function HomePage() {
       </section>
 
       {/* State selection — contained blue card */}
-      <section style={{ background: 'rgb(241,242,243)', padding: '100px 40px 0', fontFamily: 'var(--font-dm-sans)' }}>
+      <section className="px-5 md:px-10" style={{ background: 'rgb(241,242,243)', padding: '100px 0 0', fontFamily: 'var(--font-dm-sans)' }}>
         <div style={{ maxWidth: 1360, marginLeft: 'auto', marginRight: 'auto' }}>
           {/* Blue card with map + overlaid text */}
-          <div style={{ background: '#3b60f3', borderRadius: 24, overflow: 'hidden', height: 445, position: 'relative' }}>
+          <div className="min-h-[380px] md:h-[445px]" style={{ background: '#3b60f3', borderRadius: 24, overflow: 'hidden', position: 'relative' }}>
             {/* 3D US map — full background, matches reference select-state__svg-container */}
             <img
               src="/us-map-3d.svg"
               alt=""
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1, objectFit: 'cover' }}
             />
             {/* Left-fade overlay — matches reference .select-state:before */}
             <div style={{
@@ -221,10 +221,13 @@ export default function HomePage() {
               zIndex: 2, pointerEvents: 'none',
             }} />
             {/* Text content — vertically centered, matches reference .select-state__inner */}
-            <div style={{ position: 'absolute', top: '50%', left: 47, transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 32, zIndex: 3 }}>
+            <div
+              className="left-6 right-6 md:left-[47px] md:right-auto"
+              style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 32, zIndex: 3, maxWidth: 441 }}
+            >
               {/* hgroup: gap:24 between h2 and p, matches reference .base-heading-group */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                <h2 style={{ fontSize: 48, fontWeight: 600, color: '#ffffff', margin: 0, lineHeight: 1.2 }}>
+                <h2 className="text-[32px] md:text-[48px]" style={{ fontWeight: 600, color: '#ffffff', margin: 0, lineHeight: 1.2 }}>
                   Select Your State
                 </h2>
                 <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.8)', margin: 0, lineHeight: 1.5 }}>
@@ -238,9 +241,9 @@ export default function HomePage() {
       </section>
 
       {/* Name Check Widget */}
-      <section style={{ background: 'rgb(241,242,243)', padding: '64px 40px 0', fontFamily: 'var(--font-dm-sans)' }}>
+      <section className="px-5 md:px-10" style={{ background: 'rgb(241,242,243)', padding: '64px 0 0', fontFamily: 'var(--font-dm-sans)' }}>
         <div style={{ maxWidth: 1360, marginLeft: 'auto', marginRight: 'auto' }}>
-          <div style={{ background: '#ffffff', borderRadius: 24, padding: '48px 52px' }}>
+          <div className="px-6 py-10 md:px-[52px] md:py-12" style={{ background: '#ffffff', borderRadius: 24 }}>
             <div style={{ maxWidth: 640 }}>
               <h2 style={{ fontSize: 34, fontWeight: 700, color: 'rgb(15,15,15)', marginBottom: 10, lineHeight: 1.2 }}>
                 Check your business name
@@ -255,11 +258,11 @@ export default function HomePage() {
       </section>
 
       {/* RA Takeover CTA — white card */}
-      <section style={{ background: 'rgb(241,242,243)', padding: '64px 40px 80px', fontFamily: 'var(--font-dm-sans)' }}>
+      <section className="px-5 md:px-10" style={{ background: 'rgb(241,242,243)', padding: '64px 0 80px', fontFamily: 'var(--font-dm-sans)' }}>
         <div style={{ maxWidth: 1360, marginLeft: 'auto', marginRight: 'auto' }}>
-          <div style={{ background: '#ffffff', borderRadius: 24, overflow: 'hidden', height: 220, display: 'flex', alignItems: 'stretch' }}>
+          <div className="flex-col md:flex-row md:h-[220px]" style={{ background: '#ffffff', borderRadius: 24, overflow: 'hidden', display: 'flex', alignItems: 'stretch' }}>
             {/* Left: text */}
-            <div style={{ padding: '40px 52px', flex: '0 0 52%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div className="md:flex-[0_0_52%]" style={{ padding: '40px 32px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <h2 style={{ fontSize: 28, fontWeight: 700, color: 'rgb(15,15,15)', marginBottom: 8, lineHeight: 1.25 }}>
                 Is your business already active and filed?
               </h2>
@@ -279,8 +282,8 @@ export default function HomePage() {
                 Choose Compass
               </Link>
             </div>
-            {/* Right: photo with left-edge fade into white */}
-            <div style={{ flex: 1, position: 'relative' }}>
+            {/* Right: photo with left-edge fade into white — hidden on mobile, decorative */}
+            <div className="hidden md:block md:flex-1" style={{ position: 'relative' }}>
               <Image
                 src="/ra-card.webp"
                 alt="Small business owners"
@@ -302,17 +305,18 @@ export default function HomePage() {
       {/* FAQ */}
       <section
         id="faq"
+        className="px-5 md:px-10"
         style={{
           background: 'rgb(241,242,243)',
-          padding: '100px 40px',
+          padding: '100px 0',
           fontFamily: 'var(--font-dm-sans)',
         }}
       >
         <div style={{ maxWidth: 1440, marginLeft: 'auto', marginRight: 'auto' }}>
-          <h2 style={{ fontSize: 48, fontWeight: 600, color: 'rgb(23, 23, 23)', marginBottom: 40 }}>
+          <h2 className="text-[32px] md:text-[48px]" style={{ fontWeight: 600, color: 'rgb(23, 23, 23)', marginBottom: 40 }}>
             Frequently Asked Questions
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '440px 1fr', gap: 20, alignItems: 'start' }}>
+          <div className="grid grid-cols-1 md:grid-cols-[440px_1fr]" style={{ gap: 20, alignItems: 'start' }}>
             {/* Left: contact card */}
             <div style={{ background: '#ffffff', borderRadius: 16, padding: 32, display: 'flex', flexDirection: 'column', gap: 40, border: '1px solid rgb(230,232,240)' }}>
               <div>
@@ -321,6 +325,7 @@ export default function HomePage() {
                 </p>
                 <a
                   href="mailto:support@compassregisteredagent.com"
+                  className="break-all"
                   style={{ display: 'block', fontSize: 16, color: '#3b60f3', marginBottom: 8, textDecoration: 'none' }}
                 >
                   support@compassregisteredagent.com
@@ -359,12 +364,12 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer style={{ background: '#3b60f3', padding: '80px 40px 40px', fontFamily: 'var(--font-dm-sans)' }}>
+      <footer className="px-5 md:px-10" style={{ background: '#3b60f3', padding: '80px 0 40px', fontFamily: 'var(--font-dm-sans)' }}>
         <div style={{ maxWidth: 1360, marginLeft: 'auto', marginRight: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 40, alignItems: 'start', marginBottom: 64 }}>
+          <div className="grid-cols-1 md:grid-cols-3" style={{ display: 'grid', gap: 40, alignItems: 'start', marginBottom: 64 }}>
 
             {/* Left: nav links */}
-            <div>
+            <div className="text-center md:text-left">
               {[
                 { label: 'Pricing', href: '#pricing' },
                 { label: 'FAQ', href: '#faq' },
@@ -395,14 +400,15 @@ export default function HomePage() {
             </div>
 
             {/* Right: email + social icons */}
-            <div style={{ textAlign: 'right' }}>
+            <div className="text-center md:text-right">
               <a
                 href="mailto:support@compassregisteredagent.com"
+                className="break-all"
                 style={{ display: 'block', fontSize: 15, color: 'rgba(255,255,255,0.85)', textDecoration: 'none', marginBottom: 24 }}
               >
                 support@compassregisteredagent.com
               </a>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 20, alignItems: 'center' }}>
+              <div className="justify-center md:justify-end" style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
                 {/* X (Twitter) */}
                 <a href="https://x.com/Compass_R_A" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none' }}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">

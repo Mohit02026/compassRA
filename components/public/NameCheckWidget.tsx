@@ -52,7 +52,7 @@ export default function NameCheckWidget() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <form onSubmit={checkName} style={{ display: 'flex', gap: 12 }}>
+      <form onSubmit={checkName} className="flex-col sm:flex-row" style={{ display: 'flex', gap: 12 }}>
         <input
           type="text"
           value={name}

@@ -137,7 +137,7 @@ function Step1FindLLC({
           <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'rgb(60,60,60)', marginBottom: 6, fontFamily: 'var(--font-dm-sans)' }}>
             FL Document Number *
           </label>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex-col sm:flex-row" style={{ display: 'flex', gap: 8 }}>
             <input
               type="text"
               value={form.docNumber}
@@ -151,6 +151,7 @@ function Step1FindLLC({
               type="button"
               onClick={onPullFromSunbiz}
               disabled={!form.docNumber.trim() || sunbizState === 'loading'}
+              className="justify-center sm:justify-start"
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '15px 18px',
                 borderRadius: 8, border: '1px solid rgb(59,96,243)',
