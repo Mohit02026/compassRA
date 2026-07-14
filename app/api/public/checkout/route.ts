@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { z } from 'zod'
 import { createOrder } from '@/services/orders'
 import { stripe } from '@/lib/stripe'
@@ -229,6 +230,7 @@ export async function POST(req: NextRequest) {
     )
   } catch (err) {
     console.error('[POST /api/public/checkout]', err)
+    Sentry.captureException(err, { tags: { severity: 'critical', flow: 'checkout' } })
     return NextResponse.json(
       { error: { code: 500, message: 'Failed to create order' } },
       { status: 500 }

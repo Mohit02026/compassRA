@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs'
 import { prisma, setPrismaContext } from '@/lib/prisma'
 import { ServiceType, Tier, OrderStatus } from '@prisma/client'
 import { encrypt, SENSITIVE_KEYS } from '@/lib/encryption'
@@ -8,6 +9,7 @@ import { sendWelcome, sendOrderFiled, sendOrderCompleted, sendException, sendOps
 import { createCustomerWithUser } from '@/services/customers'
 import { updateOpportunityStage, getStageId } from '@/lib/ghl'
 import { lookupByDocNumber } from '@/services/sunbiz'
+import { getNextAnnualReportDueDate } from '@/lib/annualReportRules'
 
 // Compass RA constants — used in Articles of Org
 // Address confirmed via SunBiz (Document # L25000307072, filed 07/10/2025)
@@ -190,6 +192,19 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     }
   }
 
+  // Annual Report due date drives the reminder cron — auto-set it from state rules
+  // if the caller didn't supply one. Unsupported states are left null (not guessed)
+  // so ops can see and set them manually until that state's rule is added.
+  let dueDate = input.dueDate
+  if (!dueDate && input.serviceType === ServiceType.ANNUAL_REPORT) {
+    const computed = getNextAnnualReportDueDate(input.state)
+    if (computed) {
+      dueDate = computed
+    } else {
+      Sentry.captureMessage(`No annual report due date rule for state ${input.state}`, 'warning')
+    }
+  }
+
   // 4. Create order + orderData in a transaction
   const order = await prisma.$transaction(async (tx) => {
     const o = await tx.order.create({
@@ -201,7 +216,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
         tier: input.tier,
         state: input.state,
         totalAmount,
-        dueDate: input.dueDate,
+        dueDate,
         internalNotes: input.internalNotes,
         paymentRef: input.paymentRef,
       },
@@ -306,7 +321,10 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     businessName: input.businessName,
     serviceType: input.serviceType,
     tempPassword: tempPassword ?? undefined,
-  }).catch((err) => console.error('[Email] sendWelcome failed:', err))
+  }).catch((err) => {
+    console.error('[Email] sendWelcome failed:', err)
+    Sentry.captureException(err)
+  })
 
   return { orderId: order.id, customerId }
 }
@@ -320,6 +338,7 @@ async function snapshotSunbizEntity(orderId: string, docNumber: string): Promise
     })
   } catch (err) {
     console.error('[orders] sunbiz snapshot failed:', err)
+    Sentry.captureException(err, { tags: { orderId } })
   }
 }
 
@@ -366,6 +385,7 @@ async function generateAndUploadFilingSheet(params: {
   } catch (err) {
     // Non-blocking — log but don't crash the order creation
     console.error('[PDF] Failed to generate/upload filing sheet:', err)
+    Sentry.captureException(err, { tags: { orderId: params.order.id } })
   }
 }
 
@@ -435,6 +455,7 @@ async function generateAndUploadArticlesOfOrg(params: {
     })
   } catch (err) {
     console.error('[PDF] Failed to generate/upload articles of org:', err)
+    Sentry.captureException(err, { tags: { orderId: params.order.id } })
   }
 }
 
@@ -516,6 +537,7 @@ async function generateAndUploadSS4(params: {
     })
   } catch (err) {
     console.error('[PDF] Failed to generate/upload SS-4 draft:', err)
+    Sentry.captureException(err, { tags: { orderId: params.order.id } })
   }
 }
 
@@ -568,9 +590,10 @@ export async function updateStatus(input: UpdateStatusInput): Promise<void> {
   if (input.actorId !== 'system' && order.ghlOpportunityId) {
     const stageId = getStageId(input.toStatus)
     if (stageId) {
-      void updateOpportunityStage(order.ghlOpportunityId, stageId).catch((err) =>
+      void updateOpportunityStage(order.ghlOpportunityId, stageId).catch((err) => {
         console.error('[GHL sync] updateOpportunityStage failed (non-fatal):', err)
-      )
+        Sentry.captureException(err, { tags: { orderId: order.id } })
+      })
     }
   }
 
@@ -641,6 +664,7 @@ async function scheduleNextYearReminders(
     })
   } catch (err) {
     console.error('[Reminders] Failed to schedule next year reminders:', err)
+    Sentry.captureException(err, { tags: { orderId } })
   }
 }
 

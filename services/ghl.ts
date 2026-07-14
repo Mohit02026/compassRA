@@ -2,6 +2,7 @@
 // pushOrderToGHL() is called ONCE after Stripe payment is confirmed.
 // Sends: Contact + Opportunity (pipeline card) + rich Note with all order details.
 
+import * as Sentry from '@sentry/nextjs'
 import { prisma, setPrismaContext } from '@/lib/prisma'
 import { createOrUpdateContact, createOpportunity, createContactNote, uploadMediaToGHL, getStageId } from '@/lib/ghl'
 import { downloadFromR2 } from '@/lib/r2'
@@ -308,6 +309,7 @@ export async function pushOrderToGHL(orderId: string, tenantId: string): Promise
     }
   } catch (err) {
     console.error('[GHL] Document upload failed (non-fatal):', err)
+    Sentry.captureException(err, { tags: { orderId: order.id } })
   }
 
   // 4. Add rich note to the contact — non-fatal if it fails
@@ -357,6 +359,7 @@ export async function pushOrderToGHL(orderId: string, tenantId: string): Promise
     await createContactNote(contact.id, noteBody)
   } catch (err) {
     console.error('[GHL] createContactNote failed:', err)
+    Sentry.captureException(err, { tags: { orderId: order.id } })
   }
 
   // 5. Store opportunity ID for webhook matching

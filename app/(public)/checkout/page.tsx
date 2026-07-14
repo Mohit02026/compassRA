@@ -461,6 +461,7 @@ export default function CheckoutPage() {
 
   async function saveAcct(e: React.FormEvent) {
     e.preventDefault()
+    if (!payload) return
     if (acct.password.length < 8) { setAcctError('Password must be at least 8 characters.'); return }
     if (!/[A-Z]/.test(acct.password)) { setAcctError('Password must contain at least one uppercase letter.'); return }
     if (!/[0-9]/.test(acct.password)) { setAcctError('Password must contain at least one number.'); return }

@@ -45,14 +45,14 @@ export default function LegalNoticeEmail({
           </Section>
 
           <Text style={paragraph}>
-            If you have questions about this notice, reply to this email and a real person will
+            If you have questions about this notice, reply to this email and a person will
             get back to you.
           </Text>
 
           <Hr style={hr} />
 
           <Text style={footer}>
-            Compass Registered Agent &mdash; Florida LLC filing, done by a real person.
+            Compass Registered Agent &mdash; Florida LLC filing, done by a person.
             <br />
             Flat fee. No surprise charges. Verified on Sunbiz.
           </Text>

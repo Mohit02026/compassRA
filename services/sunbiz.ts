@@ -2,6 +2,7 @@
 // Endpoint: GET /api/v2/filings/{documentNumber}/
 // Same API key used for name availability search.
 
+import * as Sentry from '@sentry/nextjs'
 import { getRedis } from '@/lib/redis'
 
 export interface SunbizEntity {
@@ -62,6 +63,7 @@ export async function lookupByDocNumber(docNumber: string): Promise<SunbizEntity
   const key = process.env.SUNBIZ_DAILY_API_KEY
   if (!key) {
     console.error('[sunbiz] SUNBIZ_DAILY_API_KEY not set')
+    Sentry.captureMessage('[sunbiz] SUNBIZ_DAILY_API_KEY not set', 'error')
     return null
   }
 
@@ -74,6 +76,7 @@ export async function lookupByDocNumber(docNumber: string): Promise<SunbizEntity
       if (cached) return JSON.parse(cached) as SunbizEntity
     } catch (err) {
       console.error('[sunbiz] redis get error:', err)
+      Sentry.captureException(err)
     }
   }
 
@@ -89,6 +92,7 @@ export async function lookupByDocNumber(docNumber: string): Promise<SunbizEntity
     if (res.status === 404) return null
     if (!res.ok) {
       console.error(`[sunbiz] API ${res.status} for ${docNumber}`)
+      Sentry.captureMessage(`[sunbiz] API ${res.status} for ${docNumber}`, 'error')
       return null
     }
 
@@ -121,12 +125,14 @@ export async function lookupByDocNumber(docNumber: string): Promise<SunbizEntity
         await redis.setex(cacheKey, 604800, JSON.stringify(entity))
       } catch (err) {
         console.error('[sunbiz] redis set error:', err)
+        Sentry.captureException(err)
       }
     }
 
     return entity
   } catch (err) {
     console.error(`[sunbiz] fetch error for ${docNumber}:`, err)
+    Sentry.captureException(err, { tags: { docNumber } })
     return null
   }
 }

@@ -40,7 +40,7 @@ export default function WelcomeEmail({
 
           <Text style={paragraph}>
             We&apos;ve received your order for <strong>{businessName}</strong> ({serviceType}).
-            A real person on our team is handling your filing — no bots, no automation.
+            A person on our team is handling your filing.
           </Text>
 
           <Text style={paragraph}>
@@ -70,7 +70,7 @@ export default function WelcomeEmail({
           <Hr style={hr} />
 
           <Text style={footer}>
-            Compass Registered Agent &mdash; Florida LLC filing, done by a real person.
+            Compass Registered Agent &mdash; Florida LLC filing, done by a person.
             <br />
             Flat fee. No surprise charges. Verified on Sunbiz.
           </Text>

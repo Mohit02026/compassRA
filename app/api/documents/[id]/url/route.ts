@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { auth } from '@/lib/auth'
 import { prisma, setPrismaContext } from '@/lib/prisma'
 import { getPresignedUrl } from '@/lib/r2'
@@ -73,6 +74,7 @@ export async function GET(_req: NextRequest, { params }: Context) {
     return NextResponse.json({ data: { url } })
   } catch (err) {
     console.error('[GET /api/documents/[id]/url]', err)
+    Sentry.captureException(err)
     return NextResponse.json(
       { error: { code: 500, message: 'Failed to generate download URL' } },
       { status: 500 }

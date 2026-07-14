@@ -1,13 +1,13 @@
 // Called from /checkout/success after Stripe redirects back.
-// Verifies the PaymentIntent actually succeeded (server-side Stripe check),
-// marks the order confirmed, and pushes to GHL.
+// Verifies the PaymentIntent actually succeeded (server-side Stripe check) and marks the order confirmed.
+// GHL push is handled exclusively by the Stripe webhook (handlePaymentSucceeded) — not here.
 // Idempotent — safe to call multiple times for the same PaymentIntent.
 
 import { NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { stripe } from '@/lib/stripe'
-import { pushOrderToGHL } from '@/services/ghl'
 import { PaymentStatus } from '@prisma/client'
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     intent = await stripe().paymentIntents.retrieve(paymentIntentId)
   } catch (err) {
     console.error('[confirm-payment] Stripe retrieve failed:', err)
+    Sentry.captureException(err, { tags: { severity: 'critical', flow: 'checkout' } })
     return NextResponse.json({ ok: false }, { status: 200 })
   }
 
@@ -83,15 +84,8 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // GHL push — skip if webhook already did it
-  if (!order.ghlOpportunityId) {
-    try {
-      await pushOrderToGHL(order.id, order.tenantId)
-    } catch (err) {
-      console.error('[confirm-payment] GHL push failed:', err)
-    }
-  }
-
+  // GHL push handled exclusively by the Stripe webhook (handlePaymentSucceeded) —
+  // pushing here too raced with the webhook and threw duplicate-contact errors.
   console.log(`[confirm-payment] Payment confirmed for order ${order.id}`)
   return NextResponse.json({ ok: true }, { status: 200 })
 }

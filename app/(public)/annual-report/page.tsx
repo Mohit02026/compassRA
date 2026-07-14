@@ -302,7 +302,7 @@ function Step3Review({
           </div>
 
           <p style={{ fontSize: 12, color: 'rgb(130,130,130)', fontFamily: 'var(--font-dm-sans)', margin: '8px 0 0', lineHeight: 1.5 }}>
-            No auto-renewals. Filed by a real person. Due May 1.
+            No auto-renewals. Filed by a person. Due May 1.
           </p>
 
           <div style={{ marginTop: 8 }}>
@@ -347,8 +347,16 @@ export default function AnnualReportPage() {
 
     // Serve from sessionStorage if already fetched this session
     const cached = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null
+    let cachedEntity: SunbizResult | null = null
     if (cached) {
-      const entity: SunbizResult = JSON.parse(cached)
+      try {
+        cachedEntity = JSON.parse(cached) as SunbizResult
+      } catch {
+        sessionStorage.removeItem(cacheKey) // corrupted — clear and fall through to a fresh fetch
+      }
+    }
+    if (cachedEntity) {
+      const entity = cachedEntity
       setForm((prev) => ({
         ...prev,
         llcName:          entity.name             || prev.llcName,

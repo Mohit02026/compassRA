@@ -57,7 +57,7 @@ export default function EinCompletedEmail({
           <Hr style={hr} />
 
           <Text style={footer}>
-            Compass Registered Agent &mdash; Florida LLC filing, done by a real person.
+            Compass Registered Agent &mdash; Florida LLC filing, done by a person.
             <br />
             Flat fee. No surprise charges. Verified on Sunbiz.
           </Text>

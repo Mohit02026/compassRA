@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs'
 import { prisma, setPrismaContext } from '@/lib/prisma'
 import { OrderStatus, ServiceType } from '@prisma/client'
 import { sendAnnualReportReminder } from '@/services/email'
@@ -112,6 +113,7 @@ export async function processReminders(tenantId: string): Promise<ProcessReminde
         sent++
       } catch (err) {
         console.error(`[Reminders] Failed to send ${type} for order ${order.id}:`, err)
+        Sentry.captureException(err, { tags: { reminderType: type, orderId: order.id } })
         errors++
       }
     }

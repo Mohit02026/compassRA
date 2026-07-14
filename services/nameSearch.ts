@@ -2,6 +2,7 @@
 // Replaces the old SunBiz HTML scraper — returns structured JSON with true
 // substring matching instead of alphabetical-neighbor guessing.
 
+import * as Sentry from '@sentry/nextjs'
 import { getRedis } from '@/lib/redis'
 
 export type NameAvailability = 'available' | 'taken' | 'likely' | 'unknown'
@@ -49,6 +50,7 @@ export async function searchName(name: string): Promise<NameSearchResult> {
   const key = process.env.SUNBIZ_DAILY_API_KEY
   if (!key) {
     console.error('[nameSearch] SUNBIZ_DAILY_API_KEY not set')
+    Sentry.captureMessage('[nameSearch] SUNBIZ_DAILY_API_KEY not set', 'error')
     return { available: 'unknown', matches: [] }
   }
 
@@ -64,6 +66,7 @@ export async function searchName(name: string): Promise<NameSearchResult> {
       if (cached) return JSON.parse(cached) as NameSearchResult
     } catch (err) {
       console.error('[nameSearch] redis get error:', err)
+      Sentry.captureException(err)
     }
   }
 
@@ -78,6 +81,7 @@ export async function searchName(name: string): Promise<NameSearchResult> {
     })
     if (!res.ok) {
       console.error(`[nameSearch] API returned ${res.status}`)
+      Sentry.captureMessage(`[nameSearch] API returned ${res.status}`, 'error')
       return { available: 'unknown', matches: [] }
     }
     const data = await res.json()
@@ -111,6 +115,7 @@ export async function searchName(name: string): Promise<NameSearchResult> {
       await redis.setex(cacheKey, 86400, JSON.stringify(result))
     } catch (err) {
       console.error('[nameSearch] redis set error:', err)
+      Sentry.captureException(err)
     }
   }
 

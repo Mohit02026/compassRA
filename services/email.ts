@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs'
 import { getResend, FROM, isMock, resolveRecipient } from '@/lib/resend'
 import { render } from '@react-email/components'
 import WelcomeEmail from '@/emails/WelcomeEmail'
@@ -9,6 +10,15 @@ import LegalNoticeEmail from '@/emails/LegalNoticeEmail'
 import EinCompletedEmail from '@/emails/EinCompletedEmail'
 
 const portalUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+
+// All send* functions below are called fire-and-forget (`void sendX(...)`) throughout
+// the app — they must never throw, or the rejection goes completely unhandled with
+// zero visibility. Every Resend call is wrapped so failures are logged + reported to
+// Sentry instead of silently vanishing.
+function reportEmailFailure(emailType: string, err: unknown): void {
+  console.error(`[Email] ${emailType} failed:`, err)
+  Sentry.captureException(err, { tags: { emailType } })
+}
 
 interface WelcomeEmailPayload {
   to: string
@@ -28,16 +38,20 @@ export async function sendWelcome(payload: WelcomeEmailPayload): Promise<void> {
     return
   }
 
-  const html = await render(
-    WelcomeEmail({ customerName, businessName, serviceType, tempPassword, portalUrl: `${portalUrl}/login` })
-  )
+  try {
+    const html = await render(
+      WelcomeEmail({ customerName, businessName, serviceType, tempPassword, portalUrl: `${portalUrl}/login` })
+    )
 
-  await getResend().emails.send({
-    from: FROM,
-    to: resolveRecipient(to),
-    subject: `Your ${businessName} filing has started`,
-    html,
-  })
+    await getResend().emails.send({
+      from: FROM,
+      to: resolveRecipient(to),
+      subject: `Your ${businessName} filing has started`,
+      html,
+    })
+  } catch (err) {
+    reportEmailFailure('WelcomeEmail', err)
+  }
 }
 
 interface FiledPayload {
@@ -52,16 +66,20 @@ export async function sendOrderFiled(payload: FiledPayload): Promise<void> {
     return
   }
 
-  const html = await render(
-    OrderFiledEmail({ ...payload, portalUrl: `${portalUrl}/portal/dashboard` })
-  )
+  try {
+    const html = await render(
+      OrderFiledEmail({ ...payload, portalUrl: `${portalUrl}/portal/dashboard` })
+    )
 
-  await getResend().emails.send({
-    from: FROM,
-    to: resolveRecipient(payload.to),
-    subject: 'Your filing has been submitted',
-    html,
-  })
+    await getResend().emails.send({
+      from: FROM,
+      to: resolveRecipient(payload.to),
+      subject: 'Your filing has been submitted',
+      html,
+    })
+  } catch (err) {
+    reportEmailFailure('OrderFiledEmail', err)
+  }
 }
 
 interface CompletedPayload {
@@ -76,16 +94,20 @@ export async function sendOrderCompleted(payload: CompletedPayload): Promise<voi
     return
   }
 
-  const html = await render(
-    OrderCompletedEmail({ ...payload, portalUrl: `${portalUrl}/portal/dashboard` })
-  )
+  try {
+    const html = await render(
+      OrderCompletedEmail({ ...payload, portalUrl: `${portalUrl}/portal/dashboard` })
+    )
 
-  await getResend().emails.send({
-    from: FROM,
-    to: resolveRecipient(payload.to),
-    subject: 'Your LLC is active — documents ready',
-    html,
-  })
+    await getResend().emails.send({
+      from: FROM,
+      to: resolveRecipient(payload.to),
+      subject: 'Your LLC is active — documents ready',
+      html,
+    })
+  } catch (err) {
+    reportEmailFailure('OrderCompletedEmail', err)
+  }
 }
 
 interface ExceptionPayload {
@@ -101,16 +123,20 @@ export async function sendException(payload: ExceptionPayload): Promise<void> {
     return
   }
 
-  const html = await render(
-    ExceptionEmail({ ...payload, portalUrl: `${portalUrl}/portal/dashboard` })
-  )
+  try {
+    const html = await render(
+      ExceptionEmail({ ...payload, portalUrl: `${portalUrl}/portal/dashboard` })
+    )
 
-  await getResend().emails.send({
-    from: FROM,
-    to: resolveRecipient(payload.to),
-    subject: 'Action needed on your filing',
-    html,
-  })
+    await getResend().emails.send({
+      from: FROM,
+      to: resolveRecipient(payload.to),
+      subject: 'Action needed on your filing',
+      html,
+    })
+  } catch (err) {
+    reportEmailFailure('ExceptionEmail', err)
+  }
 }
 
 // Internal ops alert — plain text, no customer template. Used for workflow warnings.
@@ -128,12 +154,19 @@ export async function sendOpsAlert(payload: OpsAlertPayload): Promise<void> {
     return
   }
 
-  await getResend().emails.send({
-    from: FROM,
-    to: opsEmail,
-    subject: `[Compass Ops] ${payload.subject}`,
-    text: payload.body,
-  })
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: opsEmail,
+      subject: `[Compass Ops] ${payload.subject}`,
+      text: payload.body,
+    })
+  } catch (err) {
+    // This is the notification path ops relies on when something else has already
+    // failed — if it silently fails too, the original failure goes completely
+    // unnoticed. Always report to Sentry with high visibility.
+    reportEmailFailure('OpsAlert', err)
+  }
 }
 
 interface ReminderEmailPayload {
@@ -150,21 +183,25 @@ export async function sendAnnualReportReminder(payload: ReminderEmailPayload): P
     return
   }
 
-  const html = await render(
-    AnnualReportReminderEmail({ ...payload, portalUrl: `${portalUrl}/portal/dashboard` })
-  )
+  try {
+    const html = await render(
+      AnnualReportReminderEmail({ ...payload, portalUrl: `${portalUrl}/portal/dashboard` })
+    )
 
-  const subject =
-    payload.daysUntilDue <= 7
-      ? `⚠️ Annual report due in ${payload.daysUntilDue} day${payload.daysUntilDue !== 1 ? 's' : ''}`
-      : `Annual report reminder — ${payload.dueDate}`
+    const subject =
+      payload.daysUntilDue <= 7
+        ? `⚠️ Annual report due in ${payload.daysUntilDue} day${payload.daysUntilDue !== 1 ? 's' : ''}`
+        : `Annual report reminder — ${payload.dueDate}`
 
-  await getResend().emails.send({
-    from: FROM,
-    to: resolveRecipient(payload.to),
-    subject,
-    html,
-  })
+    await getResend().emails.send({
+      from: FROM,
+      to: resolveRecipient(payload.to),
+      subject,
+      html,
+    })
+  } catch (err) {
+    reportEmailFailure('AnnualReportReminderEmail', err)
+  }
 }
 
 interface LegalNoticePayload {
@@ -180,20 +217,24 @@ export async function sendLegalNotice(payload: LegalNoticePayload): Promise<void
     return
   }
 
-  const html = await render(
-    LegalNoticeEmail({
-      customerName: payload.customerName,
-      businessName: payload.businessName,
-      portalUrl: `${portalUrl}/portal/notices`,
-    })
-  )
+  try {
+    const html = await render(
+      LegalNoticeEmail({
+        customerName: payload.customerName,
+        businessName: payload.businessName,
+        portalUrl: `${portalUrl}/portal/notices`,
+      })
+    )
 
-  await getResend().emails.send({
-    from: FROM,
-    to: resolveRecipient(payload.to),
-    subject: `You have a new legal notice — ${payload.businessName}`,
-    html,
-  })
+    await getResend().emails.send({
+      from: FROM,
+      to: resolveRecipient(payload.to),
+      subject: `You have a new legal notice — ${payload.businessName}`,
+      html,
+    })
+  } catch (err) {
+    reportEmailFailure('LegalNoticeEmail', err)
+  }
 }
 
 interface EinCompletedPayload {
@@ -209,18 +250,22 @@ export async function sendEinCompleted(payload: EinCompletedPayload): Promise<vo
     return
   }
 
-  const html = await render(
-    EinCompletedEmail({
-      customerName: payload.customerName,
-      businessName: payload.businessName,
-      portalUrl: `${portalUrl}/portal/documents`,
-    })
-  )
+  try {
+    const html = await render(
+      EinCompletedEmail({
+        customerName: payload.customerName,
+        businessName: payload.businessName,
+        portalUrl: `${portalUrl}/portal/documents`,
+      })
+    )
 
-  await getResend().emails.send({
-    from: FROM,
-    to: resolveRecipient(payload.to),
-    subject: `Your EIN for ${payload.businessName} is confirmed`,
-    html,
-  })
+    await getResend().emails.send({
+      from: FROM,
+      to: resolveRecipient(payload.to),
+      subject: `Your EIN for ${payload.businessName} is confirmed`,
+      html,
+    })
+  } catch (err) {
+    reportEmailFailure('EinCompletedEmail', err)
+  }
 }

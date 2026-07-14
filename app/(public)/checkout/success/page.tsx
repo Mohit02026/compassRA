@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
+import * as Sentry from '@sentry/nextjs'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Building2, CheckCircle2, Mail, ArrowRight, Loader2, Clock } from 'lucide-react'
 import Link from 'next/link'
@@ -65,7 +66,10 @@ function SuccessContent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ paymentIntentId }),
-        }).catch((err) => console.error('[confirm-payment]', err))
+        }).catch((err) => {
+          console.error('[confirm-payment]', err)
+          Sentry.captureException(err, { tags: { severity: 'critical', flow: 'checkout' } })
+        })
       }
     } else if (redirectStatus === 'processing') {
       setStatus('pending')
@@ -107,8 +111,7 @@ function SuccessContent() {
               Payment received. Filing started.
             </h1>
             <p style={{ fontSize: 14, color: 'var(--color-muted)', lineHeight: 1.6, marginBottom: 28 }}>
-              A real person will file your LLC with Sunbiz — no bots, no delays.
-              Check your email for confirmation, then sign in to track your filing.
+              Sign in to track your filing.
             </p>
 
             {/* Order summary — only shown if sessionStorage had data */}

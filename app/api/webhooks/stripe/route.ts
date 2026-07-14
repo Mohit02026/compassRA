@@ -14,6 +14,7 @@
 // Idempotency: WebhookEvent table prevents duplicate processing.
 
 import { NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { constructStripeEvent } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
 import { pushOrderToGHL } from '@/services/ghl'
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
 
   if (!sig || !secret) {
     console.error('[Stripe webhook] Missing signature or secret')
+    Sentry.captureMessage('[Stripe webhook] Missing signature or secret', 'error')
     return NextResponse.json({ ok: false }, { status: 200 })
   }
 
@@ -38,6 +40,7 @@ export async function POST(req: NextRequest) {
     event = constructStripeEvent(payload, sig, secret)
   } catch (err) {
     console.error('[Stripe webhook] Signature verification failed:', err)
+    Sentry.captureException(err)
     return NextResponse.json({ ok: false }, { status: 200 })
   }
 
@@ -73,6 +76,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (err) {
     console.error(`[Stripe webhook] Error handling ${event.type}:`, err)
+    Sentry.captureException(err, { tags: { stripeEventType: event.type } })
     // Don't record as processed — allow Stripe to retry
     return NextResponse.json({ ok: false }, { status: 200 })
   }
@@ -112,6 +116,7 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent): Promise<voi
     await pushOrderToGHL(order.id, order.tenantId)
   } catch (err) {
     console.error(`[Stripe webhook] GHL push failed for order ${order.id}:`, err)
+    Sentry.captureException(err, { tags: { orderId: order.id } })
     // Alert ops so the order doesn't silently vanish from Bridget's queue
     void sendOpsAlert({
       subject: `GHL push failed — order ${order.id}`,

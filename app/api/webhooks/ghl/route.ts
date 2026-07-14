@@ -14,6 +14,7 @@
 // Always return 200 — prevents GHL retry storms.
 
 import { NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import crypto from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { updateStatus } from '@/services/orders'
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
 
   if (!verifySignature(rawBody, signature)) {
     console.error('[GHL webhook] Invalid signature')
+    Sentry.captureMessage('[GHL webhook] Invalid signature', 'warning')
     return NextResponse.json({ ok: false }, { status: 200 })
   }
 
@@ -87,11 +89,13 @@ export async function POST(req: NextRequest) {
     payload = JSON.parse(rawBody) as GhlWebhookPayload
   } catch {
     console.error('[GHL webhook] Invalid JSON')
+    Sentry.captureMessage('[GHL webhook] Invalid JSON', 'warning')
     return NextResponse.json({ ok: false }, { status: 200 })
   }
 
   if (!validateTimestamp(payload)) {
     console.error('[GHL webhook] Replay attack detected — _ts too old')
+    Sentry.captureMessage('[GHL webhook] Replay attack detected — _ts too old', 'warning')
     return NextResponse.json({ ok: false }, { status: 200 })
   }
 
@@ -119,6 +123,7 @@ export async function POST(req: NextRequest) {
     await handleStageChange(opportunityId, newStatus)
   } catch (err) {
     console.error('[GHL webhook] Error handling stage change:', err)
+    Sentry.captureException(err, { tags: { opportunityId } })
   }
 
   return NextResponse.json({ ok: true }, { status: 200 })

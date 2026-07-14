@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { auth } from '@/lib/auth'
 import { setPrismaContext } from '@/lib/prisma'
 import { createOrder, listOrders } from '@/services/orders'
@@ -83,6 +84,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ data: result }, { status: 201 })
   } catch (err) {
     console.error('[POST /api/orders]', err)
+    Sentry.captureException(err)
     return NextResponse.json(
       { error: { code: 500, message: 'Failed to create order' } },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { auth } from '@/lib/auth'
 import { getOrder, updateStatus, isLegalTransition } from '@/services/orders'
 import { OrderStatus } from '@prisma/client'
@@ -73,6 +74,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     return NextResponse.json({ data: { success: true } })
   } catch (err) {
     console.error('[PATCH /api/orders/[id]]', err)
+    Sentry.captureException(err)
     return NextResponse.json(
       { error: { code: 500, message: 'Failed to update status' } },
       { status: 500 }

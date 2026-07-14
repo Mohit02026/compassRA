@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { auth } from '@/lib/auth'
 import { uploadDocument, listDocuments } from '@/services/documents'
 import { DocumentType } from '@prisma/client'
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ data: doc }, { status: 201 })
   } catch (err) {
     console.error('[POST /api/documents]', err)
+    Sentry.captureException(err)
     return NextResponse.json(
       { error: { code: 500, message: 'Failed to upload document' } },
       { status: 500 }

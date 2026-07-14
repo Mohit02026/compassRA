@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { processReminders } from '@/services/reminders'
@@ -42,6 +43,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ data: totals })
   } catch (err) {
     console.error('[Cron/reminders] Fatal error:', err)
+    Sentry.captureException(err)
     return NextResponse.json(
       { error: { code: 500, message: 'Cron failed' } },
       { status: 500 }
