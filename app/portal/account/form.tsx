@@ -32,6 +32,9 @@ export function PortalAccountForm({ email }: { email: string }) {
     e.preventDefault()
     setError(''); setSuccess(false)
     if (password.length < 8) { setError('New password must be at least 8 characters.'); return }
+    if (!/[A-Z]/.test(password)) { setError('New password must contain at least one uppercase letter.'); return }
+    if (!/[0-9]/.test(password)) { setError('New password must contain at least one number.'); return }
+    if (!/[^A-Za-z0-9]/.test(password)) { setError('New password must contain at least one special character.'); return }
     if (password !== confirm) { setError('Passwords do not match.'); return }
     setLoading(true)
     const res = await fetch('/api/customers/change-password', {
@@ -81,7 +84,7 @@ export function PortalAccountForm({ email }: { email: string }) {
           <div>
             {label('New password')}
             <input type="password" name="newPassword" value={password} onChange={(e) => setPassword(e.target.value)}
-              required minLength={8} autoComplete="new-password" placeholder="Min. 8 characters" style={inputStyle} />
+              required minLength={8} autoComplete="new-password" placeholder="8+ chars, 1 uppercase, 1 number, 1 special char" style={inputStyle} />
           </div>
           <div>
             {label('Confirm new password')}

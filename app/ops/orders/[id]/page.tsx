@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Upload, CheckCircle, AlertTriangle, RotateCcw, FileText, Download } from 'lucide-react'
-import { StatusPill } from '@/components/ui/StatusPill'
+import { StatusPill, PaymentStatusPill } from '@/components/ui/StatusPill'
 import { OrderStatus, DocumentType } from '@prisma/client'
 
 const BLUE = '#3B60F3'
@@ -479,7 +479,10 @@ export default function OpsOrderDetailPage({ params }: Props) {
               <Row label="Service" value={formatService(order.serviceType)} />
               <Row label="Tier" value={order.tier} />
               <Row label="State" value={order.state} />
-              <Row label="Payment" value={order.paymentStatus ?? '—'} />
+              <div className="flex justify-between items-center gap-2 py-1.5" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                <span className="text-xs" style={{ color: 'var(--color-muted)' }}>Payment</span>
+                <PaymentStatusPill status={order.paymentStatus} />
+              </div>
               <Row label="Due Date" value={formatDate(order.dueDate)} />
               <Row label="Filed At" value={formatDate(order.filedAt)} />
               <Row label="Completed" value={formatDate(order.completedAt)} />

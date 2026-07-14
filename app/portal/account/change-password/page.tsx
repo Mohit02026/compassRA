@@ -19,6 +19,18 @@ export default function ChangePasswordPage() {
       setError('Password must be at least 8 characters.')
       return
     }
+    if (!/[A-Z]/.test(password)) {
+      setError('Password must contain at least one uppercase letter.')
+      return
+    }
+    if (!/[0-9]/.test(password)) {
+      setError('Password must contain at least one number.')
+      return
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      setError('Password must contain at least one special character.')
+      return
+    }
     if (password !== confirm) {
       setError('Passwords do not match.')
       return
@@ -94,7 +106,7 @@ export default function ChangePasswordPage() {
               required
               minLength={8}
               autoComplete="new-password"
-              placeholder="Min. 8 characters"
+              placeholder="8+ chars, 1 uppercase, 1 number, 1 special char"
               className="w-full border rounded-md px-3 py-2.5 text-sm outline-none transition-all"
               style={{ borderColor: 'var(--color-border)' }}
             />

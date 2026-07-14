@@ -1,4 +1,4 @@
-import { OrderStatus } from '@prisma/client'
+import { OrderStatus, PaymentStatus } from '@prisma/client'
 
 const STATUS_STYLES: Record<OrderStatus, string> = {
   INTAKE:
@@ -35,6 +35,31 @@ export function StatusPill({ status, className = '' }: Props) {
       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[status]} ${className}`}
     >
       {STATUS_LABELS[status]}
+    </span>
+  )
+}
+
+const PAYMENT_STATUS_STYLES: Record<PaymentStatus, string> = {
+  CONFIRMED: 'bg-green-600 text-white',
+  PENDING:   'bg-transparent text-amber-700 border border-amber-300',
+}
+
+const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  CONFIRMED: 'Paid',
+  PENDING:   'Unpaid',
+}
+
+interface PaymentStatusPillProps {
+  status: PaymentStatus
+  className?: string
+}
+
+export function PaymentStatusPill({ status, className = '' }: PaymentStatusPillProps) {
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PAYMENT_STATUS_STYLES[status]} ${className}`}
+    >
+      {PAYMENT_STATUS_LABELS[status]}
     </span>
   )
 }

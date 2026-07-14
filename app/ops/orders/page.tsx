@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Search, FileText, Plus } from 'lucide-react'
-import { StatusPill } from '@/components/ui/StatusPill'
-import { OrderStatus } from '@prisma/client'
+import { StatusPill, PaymentStatusPill } from '@/components/ui/StatusPill'
+import { OrderStatus, PaymentStatus } from '@prisma/client'
 
 const BLUE = '#3B60F3'
 
@@ -14,6 +14,7 @@ type Filter = (typeof STATUS_FILTERS)[number]
 interface OrderRow {
   id: string
   status: OrderStatus
+  paymentStatus: PaymentStatus
   serviceType: string
   state: string
   totalAmount: string
@@ -141,7 +142,7 @@ export default function OpsOrdersPage() {
         <table className="w-full text-sm">
           <thead>
             <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'rgb(248,249,250)' }}>
-              {['Business', 'Service', 'State', 'Status', 'Due Date', 'Amount'].map((h) => (
+              {['Business', 'Service', 'State', 'Status', 'Payment', 'Due Date', 'Amount'].map((h) => (
                 <th
                   key={h}
                   className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
@@ -155,14 +156,14 @@ export default function OpsOrdersPage() {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-sm" style={{ color: 'var(--color-muted)' }}>
+                <td colSpan={7} className="px-4 py-12 text-center text-sm" style={{ color: 'var(--color-muted)' }}>
                   Loading…
                 </td>
               </tr>
             )}
             {!loading && visible.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-16 text-center">
+                <td colSpan={7} className="px-4 py-16 text-center">
                   <div className="flex flex-col items-center">
                     <FileText size={36} style={{ color: 'var(--color-border)' }} />
                     <p className="text-sm font-medium mt-3" style={{ color: 'var(--color-muted)' }}>No orders found</p>
@@ -192,6 +193,9 @@ export default function OpsOrdersPage() {
                 </td>
                 <td className="px-4 py-3.5">
                   <StatusPill status={order.status} />
+                </td>
+                <td className="px-4 py-3.5">
+                  <PaymentStatusPill status={order.paymentStatus} />
                 </td>
                 <td className="px-4 py-3.5">
                   <span className="text-sm" style={{ color: isDue(order.dueDate) && order.status !== 'COMPLETED' ? '#ef4444' : 'var(--color-muted)' }}>

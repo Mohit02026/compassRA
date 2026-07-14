@@ -465,6 +465,7 @@ export default function CheckoutPage() {
     if (acct.password.length < 8) { setAcctError('Password must be at least 8 characters.'); return }
     if (!/[A-Z]/.test(acct.password)) { setAcctError('Password must contain at least one uppercase letter.'); return }
     if (!/[0-9]/.test(acct.password)) { setAcctError('Password must contain at least one number.'); return }
+    if (!/[^A-Za-z0-9]/.test(acct.password)) { setAcctError('Password must contain at least one special character.'); return }
     if (acct.password !== acct.confirm) { setAcctError('Passwords do not match.'); return }
     setAcctError('')
     setApiLoading(true)
@@ -597,6 +598,7 @@ export default function CheckoutPage() {
                     { label: 'At least 8 characters', met: acct.password.length >= 8 },
                     { label: 'At least one uppercase letter', met: /[A-Z]/.test(acct.password) },
                     { label: 'At least one number', met: /[0-9]/.test(acct.password) },
+                    { label: 'At least one special character', met: /[^A-Za-z0-9]/.test(acct.password) },
                   ].map(({ label, met }) => (
                     <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{
